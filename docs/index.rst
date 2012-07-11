@@ -2,9 +2,11 @@ Welcome to mold's documentation!
 ================================
 
 .. toctree::
-   :maxdepth: 2
+    :maxdepth: 2
    
-   state
+    actors
+    documents
+    schema/index
 
 
 
