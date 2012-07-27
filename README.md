@@ -15,11 +15,12 @@ standards that all configuration management tools can follow.  If
 other tools adopt these standards (or any standards at all), even 
 if no one uses ``mold``, the project will have been a success.
 
+The Mold Standard is separately maintained in the [moldspec project](https://github.com/iffy/moldspec).
+
 
 # Quickstart #
 
-Make a virtual environment (no, this isn't necessary, but it sure
-is nice):
+Make a virtual environment (no, this isn't necessary, but it sure is nice):
 
     virtualenv moldtest
     source moldtest/bin/activate
