@@ -40,3 +40,8 @@ class DictInspector:
         return defer.maybeDeferred(inspector.inspect, params)
 
 
+
+from mold.inspector import files
+inspector = DictInspector({
+    'file': files.Inspector(),
+})
