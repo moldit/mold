@@ -9,7 +9,6 @@ setup(
     packages=[
         'mold', 'mold.test',
         'mold.inspector', 'mold.inspector.test',
-        'mold.schema', 'mold.schema.test',
         'mold.script', 'mold.script.test',
     ],
     install_requires=[

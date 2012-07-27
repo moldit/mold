@@ -15,6 +15,8 @@ standards that all configuration management tools can follow.  If
 other tools adopt these standards (or any standards at all), even 
 if no one uses ``mold``, the project will have been a success.
 
+The *Mold Standard* lives in a separate repo moldspec XXX
+
 
 # Quickstart #
 
@@ -78,9 +80,6 @@ Install ``sphinx``:
 
     pip install --upgrade sphinx
 
-Extract the JSON schema:
-
-    make predoc
 
 Build the docs
 
