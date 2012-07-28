@@ -4,7 +4,7 @@ from zope.interface import implements
 
 
 from mold.interface import IInspector
-from mold.inspector.general import DictInspector, UnknownResource
+from mold.inspector.general import DictInspector, UnknownResource, inspector
 
 
 
@@ -67,3 +67,9 @@ class DictInspectorTest(TestCase):
         return self.assertFailure(di.inspect(params), UnknownResource)
 
 
+
+class inspectorTest(TestCase):
+
+
+    def test_DictInspector(self):
+        self.assertTrue(isinstance(inspector, DictInspector))

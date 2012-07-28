@@ -22,13 +22,11 @@ def inspect(options, suboptions):
     def printit(result):
         print(json.dumps(result, sort_keys=True, indent=4))
         reactor.stop()
-    if suboptions['kind'] == 'file':
-        from mold.inspector.files import Inspector
-        i = Inspector()
-        return i.inspect({'kind': suboptions['kind'],
-                          'name': suboptions['name']}).addBoth(printit)
-    else:
-        raise ValueError('Unknown resource type: %r' % suboptions['kind'])
+    from mold.inspector.general import inspector
+    return inspector.inspect({
+        'kind': suboptions['kind'],
+        'name': suboptions['name']
+    }).addBoth(printit)
 
 
 class Options(usage.Options):
