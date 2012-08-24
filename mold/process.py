@@ -2,7 +2,7 @@
 XXX
 """
 
-from twisted.internet import protocol
+from twisted.internet import protocol, defer
 
 
 import json
@@ -16,9 +16,13 @@ class LoggingProtocol(protocol.ProcessProtocol):
     
     @ivar label: Uniqueish label for the spawned process.  Used in sending log
         data to the historian.
+    
+    @ivar done: A C{Deferred} which fires when the process is done.
     """
     
     label = None
+    
+    done = None
 
     
     def __init__(self, label=None, stdin=None, stdout=None, stderr=None,
@@ -41,6 +45,8 @@ class LoggingProtocol(protocol.ProcessProtocol):
             received by me.
         """
         self.label = label or str(uuid.uuid4().bytes).encode('base64')
+        self.done = defer.Deferred()
+
         self._stdin = stdin
         self._stdout = stdout or (lambda x:None)
         self._stderr = stderr or (lambda x:None)
@@ -103,4 +109,11 @@ class LoggingProtocol(protocol.ProcessProtocol):
             'm': data,
             'lab': self.label,
         }))
+
+
+    def processEnded(self, status):
+        self.done.callback((status.value.exitCode, status.value.signal))
+
+
+
 

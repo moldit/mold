@@ -1,5 +1,7 @@
 from twisted.trial.unittest import TestCase
 from twisted.test.proto_helpers import StringTransport
+from twisted.internet import reactor
+from twisted.python.filepath import FilePath
 
 
 import json
@@ -10,6 +12,9 @@ from mold.process import LoggingProtocol
 
 
 class LoggingProtocolTest(TestCase):
+
+
+    timeout = 1
 
 
     def test_defaults(self):
@@ -26,6 +31,47 @@ class LoggingProtocolTest(TestCase):
         """
         proto = LoggingProtocol(label='foo')
         self.assertEqual(proto.label, 'foo')
+
+
+    def test_done(self):
+        """
+        The protocol should have a C{done} Deferred which fires with the exit
+        code when it's done.
+        """
+        proto = LoggingProtocol()
+        self.assertFalse(proto.done.called)        
+        reactor.spawnProcess(proto, '/bin/echo', ['echo', 'foo'])
+        
+        def check(response):
+            exitcode, signal = response
+            self.assertEqual(exitcode, 0)
+            self.assertEqual(signal, None)
+            
+        return proto.done.addCallback(check)
+
+
+    def test_done_error(self):
+        """
+        The protocol should report any signal used on the process
+        """
+        script = FilePath(self.mktemp())
+        script.setContent('sleep 500')
+               
+        proto = LoggingProtocol()
+        
+        # make it kill as soon as it's connected
+        def connectionMade():
+            proto.transport.signalProcess(9)
+        proto.connectionMade = connectionMade
+
+        reactor.spawnProcess(proto, '/bin/bash', ['bash', script.path])
+        
+        def check(response):
+            exitcode, signal = response
+            self.assertNotEqual(exitcode, 0)
+            self.assertEqual(signal, 9)
+            
+        return proto.done.addCallback(check)
 
 
     def test_childDataReceived(self):
