@@ -112,7 +112,10 @@ class LoggingProtocol(protocol.ProcessProtocol):
 
 
     def processEnded(self, status):
-        self.done.callback((status.value.exitCode, status.value.signal))
+        if status.value.exitCode != 0:
+            self.done.errback(status)
+        else:
+            self.done.callback((status.value.exitCode, status.value.signal))
 
 
 

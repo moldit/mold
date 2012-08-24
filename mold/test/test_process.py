@@ -59,19 +59,21 @@ class LoggingProtocolTest(TestCase):
                
         proto = LoggingProtocol()
         
-        # make it kill as soon as it's connected
+        # kill the process as soon as it's connected
         def connectionMade():
             proto.transport.signalProcess(9)
         proto.connectionMade = connectionMade
 
         reactor.spawnProcess(proto, '/bin/bash', ['bash', script.path])
         
-        def check(response):
-            exitcode, signal = response
-            self.assertNotEqual(exitcode, 0)
-            self.assertEqual(signal, 9)
-            
-        return proto.done.addCallback(check)
+        def cb(response):
+            self.fail('Should have errbacked: %r' % (response,))
+        
+        def eb(response):
+            self.assertNotEqual(response.value.exitCode, 0)
+            self.assertEqual(response.value.signal, 9)
+        
+        return proto.done.addCallbacks(cb, eb)
 
 
     def test_childDataReceived(self):
