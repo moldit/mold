@@ -13,7 +13,7 @@ import os
 
 
 
-def spawnLogged(reactor, proto, executable, args, env, path,
+def spawnLogged(reactor, proto, executable, args=(), env={}, path=None,
                 uid=None, gid=None, usePTY=False):
     fds = {
         0: 'w',
@@ -22,16 +22,15 @@ def spawnLogged(reactor, proto, executable, args, env, path,
         3: 'r',
     }
     log_args = {
-        'label': proto.label,
-        'bin': executable,
+        'executable': executable,
         'args': args,
         'env': env,
         'path': path,
-        'uid': uid or os.geteuid(),
-        'gid': gid or os.getegid(),
+        'uid': uid,
+        'gid': gid,
         'usePTY': usePTY,
     }
-    proto.ctlReceived(proto.msg_factory.processSpawned(**log_args))
+    proto.logSpawn(**log_args)
     reactor.spawnProcess(proto, executable, args, env, path, usePTY=usePTY,
                          childFDs=fds)
 
@@ -79,6 +78,19 @@ class LoggingProtocol(protocol.ProcessProtocol):
         self._stdout = stdout or (lambda x:None)
         self._stderr = stderr or (lambda x:None)
         self._control = control or (lambda x:None)
+
+
+    def logSpawn(self, executable, args=(), env={}, path=None, uid=None,
+                 gid=None, usePTY=False):
+        """
+        Log how this process was spawned.
+        """
+        path = path or os.path.abspath(os.curdir)
+        uid = uid or os.geteuid()
+        gid = gid or os.getegid()
+        msg = self.msg_factory.processSpawned(self.label, executable, args, env,
+                                             path, uid, gid, usePTY)
+        self.ctlReceived(msg)
 
 
     def connectionMade(self):

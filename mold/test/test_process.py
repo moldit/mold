@@ -62,6 +62,7 @@ class spawnLoggedTest(TestCase):
         return proto.done.addCallback(check)
 
 
+
 class LoggingProtocolTest(TestCase):
 
 
@@ -303,4 +304,37 @@ class LoggingProtocolTest(TestCase):
         proto.write('foo')
         self.assertEqual(called[0], proto.msg_factory.fd(proto.label, 0, 'foo'))
 
+
+    def test_logSpawn(self):
+        """
+        You can log that a spawn happened.
+        """       
+        proto = LoggingProtocol()
+        
+        called = []
+        proto.ctlReceived = called.append
+        
+        proto.logSpawn('/bin/bash', ['bash', 'foo'], {'FOO':'BAR'},
+                       '/tmp', 'user1', 'group1', usePTY=False)
+        self.assertEqual(called[0], proto.msg_factory.processSpawned(
+                       proto.label,
+                       '/bin/bash', ['bash', 'foo'], {'FOO':'BAR'},
+                       '/tmp', 'user1', 'group1', usePTY=False))
+
+
+    def test_logSpawn_defaults(self):
+        """
+        If you don't pass certain params, these defaults are used.
+        """
+        proto = LoggingProtocol()
+        
+        called = []
+        proto.ctlReceived = called.append
+        
+        proto.logSpawn('/bin/bash')
+        self.assertEqual(called[0], proto.msg_factory.processSpawned(
+                       proto.label,
+                       '/bin/bash', (), {}, os.path.abspath(os.curdir),
+                       os.geteuid(), os.getegid(), False))
+        
 
