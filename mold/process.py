@@ -21,16 +21,22 @@ class LoggingProtocol(protocol.ProcessProtocol):
     label = None
 
     
-    def __init__(self, historian=None, label=None):
-        """
-        @param historian: A function that will be given strings of control data
-            as they are received by this protocol.
-        
+    def __init__(self, label=None, stdout=None, stderr=None, control=None):
+        """      
         @param label: String label identifying the process for which I am a
             protocol.
+        
+        @param stdout: Function that will be given each string of stdout
+            received by me.
+        @param stderr: Function that will be given each string of stderr
+            received by me.
+        @param control: Function that will be given each string of control data
+            received by me.
         """
-        self.historian = historian or (lambda x:None)
         self.label = label or str(uuid.uuid4().bytes).encode('base64')
+        self._stdout = stdout or (lambda x:None)
+        self._stderr = stderr or (lambda x:None)
+        self._control = control or (lambda x:None)
     
     
     def childDataReceived(self, childfd, data):
@@ -51,7 +57,7 @@ class LoggingProtocol(protocol.ProcessProtocol):
         
         @param data: A string, typically JSON.
         """
-        self.historian(data)
+        self._control(data)
 
 
     def outReceived(self, data):
@@ -60,6 +66,7 @@ class LoggingProtocol(protocol.ProcessProtocol):
         
         @param data: a string
         """
+        self._stdout(data)
         self.ctlReceived(json.dumps({
             'fd': 1,
             'm': data,
@@ -73,6 +80,7 @@ class LoggingProtocol(protocol.ProcessProtocol):
         
         @param data: a string
         """
+        self._stderr(data)
         self.ctlReceived(json.dumps({
             'fd': 2,
             'm': data,

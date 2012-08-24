@@ -57,14 +57,13 @@ class LoggingProtocolTest(TestCase):
         proto.ctlReceived('foo')
 
 
-    def test_ctlReceived_historian(self):
+    def test_ctlReceived_passthru(self):
         """
-        If the LoggingProtocol has a historian, then ctlReceived will send all
-        data to it.
+        Control data can be passed through
         """
         called = []
         
-        proto = LoggingProtocol(historian=called.append)
+        proto = LoggingProtocol(control=called.append)
         proto.ctlReceived('foo')
         proto.ctlReceived('bar')
         self.assertEqual(called, ['foo', 'bar'])
@@ -86,6 +85,17 @@ class LoggingProtocolTest(TestCase):
         self.assertEqual(data['lab'], proto.label, "Should send the label")
 
 
+    def test_outReceived_passthru(self):
+        """
+        You can ask the protocol for all stdout.
+        """
+        called = []
+        
+        proto = LoggingProtocol(stdout=called.append)
+        proto.outReceived('foo')
+        self.assertEqual(called, ['foo'], "Should have sent stdout")
+
+
     def test_errReceived_default(self):
         """
         By default, all stderr is sent to the historian, marked as "err".
@@ -100,5 +110,16 @@ class LoggingProtocolTest(TestCase):
         self.assertEqual(data['fd'], 2, "File descriptor number should be passed")
         self.assertEqual(data['m'], 'foo', "Message should be passed")
         self.assertEqual(data['lab'], proto.label, "Should send the label")
+
+
+    def test_errReceived_passthru(self):
+        """
+        You can ask the protocol for all stderr.
+        """
+        called = []
+        
+        proto = LoggingProtocol(stderr=called.append)
+        proto.errReceived('foo')
+        self.assertEqual(called, ['foo'], "Should have sent stderr")
 
 
