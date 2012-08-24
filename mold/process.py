@@ -10,7 +10,94 @@ from mold.log import MessageFactory
 import json
 import uuid
 import os
+import re
 
+
+
+class NotFinished(Exception): pass
+
+
+
+class NetstringBuffer:
+
+
+    state = 'length'
+    
+    r_length = re.compile('((.*?)([0-9]+):)')
+    r_nonnum = re.compile('([^0-9]+)')
+
+    
+    def __init__(self, goodstring, badstring=None):
+        """
+        @param goodstring: Function that will be called once per good string
+            encountered.
+        @param badstring: Function that will be called with each malformed
+            string as it's encountered.
+        """
+        self._buffer = ''
+        self.length = ''
+        self.string = ''
+        self.goodstring = goodstring
+        self.badstring = badstring or (lambda x:None)
+
+
+    def dataReceived(self, data):
+        self._buffer += data
+        self.parseBuffer()
+
+
+    def parseBuffer(self):
+        while self._buffer:
+            m = getattr(self, 'parse_'+self.state)
+            try:
+                self.state = m()
+            except NotFinished:
+                break
+
+    def parse_length(self):
+        m = self.r_length.match(self._buffer)
+        if not m:
+            m = self.r_nonnum.match(self._buffer)
+            if m:
+                bad = m.groups()[0]
+                self._buffer = self._buffer[len(bad):]
+                self.badstring(bad)
+            raise NotFinished()
+        
+        whole, bad, good = m.groups()
+        while len(good) > 1 and good[0] == '0':
+            bad += '0'
+            good = good[1:]
+        if bad:
+            self.badstring(bad)
+        self.length = long(good)
+        self._buffer = self._buffer[len(whole):]
+        return 'string'
+
+
+    def parse_string(self):
+        remaining = self.length - len(self.string)
+        self.string += self._buffer[:remaining]
+        self._buffer = self._buffer[remaining:]
+        if len(self.string) == self.length:
+            # done with string
+            if not self._buffer:
+                return 'string'
+            elif self._buffer[0] == ',':
+                self._buffer = self._buffer[1:]
+                self.goodstring(self.string)
+                self.string = ''
+                self.length = ''
+                return 'length'
+            else:
+                m = self.r_nonnum.match(self._buffer)
+                bad = ('%s:'% self.length) + self._buffer
+                self.badstring(self._buffer)
+                self.string = ''
+                self.length = ''
+                return 'length'
+        return 'string'
+        
 
 
 def spawnLogged(reactor, proto, executable, args=(), env={}, path=None,
@@ -70,7 +157,7 @@ class LoggingProtocol(protocol.ProcessProtocol):
         @param control: Function that will be given each string of control data
             received by me.
         """
-        self.label = label or str(uuid.uuid4().bytes).encode('base64')
+        self.label = label or str(uuid.uuid4().bytes).encode('base64').strip()
         self.msg_factory = msg_factory or MessageFactory()
         self.done = defer.Deferred()
 
@@ -90,7 +177,7 @@ class LoggingProtocol(protocol.ProcessProtocol):
         gid = gid or os.getegid()
         msg = self.msg_factory.processSpawned(self.label, executable, args, env,
                                              path, uid, gid, usePTY)
-        self.ctlReceived(msg)
+        self.sendControl(msg)
 
 
     def connectionMade(self):
@@ -106,7 +193,7 @@ class LoggingProtocol(protocol.ProcessProtocol):
         """
         Write data to the process' stdin.
         """
-        self.ctlReceived(self.msg_factory.fd(self.label, 0, data))
+        self.sendControl(self.msg_factory.fd(self.label, 0, data))
         self.transport.write(data)
 
 
@@ -128,13 +215,23 @@ class LoggingProtocol(protocol.ProcessProtocol):
         elif childfd == 3:
             self.ctlReceived(data)
 
+    def sendControl(self, message):
+        """
+        Send control message to handler.
+        
+        @param message: An entire message (no chunks).
+        """
+        self._control(message)
+
 
     def ctlReceived(self, data):
         """
         Control statement received.
         
-        @param data: A string, typically JSON.
+        @param data: A portion/entire netstring, typically with a JSON payload.
         """
+        raise NotImplementedError('foo')
+        self.sendControl(self.msg_factory.fd(self.label, 3, data))
         self._control(data)
 
 
@@ -144,7 +241,7 @@ class LoggingProtocol(protocol.ProcessProtocol):
         
         @param data: a string
         """
-        self.ctlReceived(self.msg_factory.fd(self.label, 1, data))
+        self.sendControl(self.msg_factory.fd(self.label, 1, data))
         self._stdout(data)
 
 
@@ -154,12 +251,12 @@ class LoggingProtocol(protocol.ProcessProtocol):
         
         @param data: a string
         """
-        self.ctlReceived(self.msg_factory.fd(self.label, 2, data))
+        self.sendControl(self.msg_factory.fd(self.label, 2, data))
         self._stderr(data)
 
 
     def processEnded(self, status):
-        self.ctlReceived(self.msg_factory.processEnded(
+        self.sendControl(self.msg_factory.processEnded(
             self.label, status.value.exitCode, status.value.signal))
         if status.value.exitCode != 0:
             self.done.errback(status)

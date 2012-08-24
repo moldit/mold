@@ -8,8 +8,90 @@ import json
 import os
 
 
-from mold.process import LoggingProtocol, spawnLogged
+from mold.process import LoggingProtocol, spawnLogged, NetstringBuffer
 from mold.log import MessageFactory
+
+
+
+class NetstringBufferTest(TestCase):
+
+
+    def test_whole(self):
+        """
+        Whole netstrings are allowed
+        """
+        called = []
+        n = NetstringBuffer(called.append)
+        n.dataReceived('3:foo,')
+        self.assertEqual(called, ['foo'])
+
+
+    def test_two(self):
+        """
+        Two netstrings are allowed
+        """
+        called = []
+        n = NetstringBuffer(called.append)
+        n.dataReceived('3:foo,4:foot,')
+        self.assertEqual(called, ['foo', 'foot'])
+
+
+    def test_invalid(self):
+        """
+        Invalid netstrings are sent to the error collector
+        """
+        c1 = []
+        c2 = []
+        n = NetstringBuffer(c1.append, c2.append)
+        n.dataReceived('foobar2:ok,something3:foohello9')
+        self.assertEqual(c1, ['ok'])
+        self.assertEqual(c2, ['foobar', 'something', '3:foohello'])
+
+
+    def test_leading0(self):
+        c1 = []
+        c2 = []
+        n = NetstringBuffer(c1.append, c2.append)
+        n.dataReceived('02:ok,0:,')
+        self.assertEqual(c1, ['ok', ''])
+        self.assertEqual(c2, ['0'])
+
+
+    def test_partial(self):
+        """
+        You can get the string a part at a time
+        """
+        c1 = []
+        c2 = []
+        n = NetstringBuffer(c1.append, c2.append)
+        n.dataReceived('3:a')
+        self.assertEqual(c1, [])
+        self.assertEqual(c2, [])
+        n.dataReceived('bc')
+        self.assertEqual(c1, [])
+        self.assertEqual(c2, [])
+        n.dataReceived(',')
+        self.assertEqual(c1, ['abc'])
+        self.assertEqual(c2, [])
+
+
+    def test_partial_length(self):
+        """
+        You can get a string a piece at a time, even the length
+        """
+        c1 = []
+        c2 = []
+        n = NetstringBuffer(c1.append, c2.append)
+        
+        msg = 'a' * 8920
+        s = '%s:%s' % (len(msg), msg)
+        for c in s:
+            n.dataReceived(c)
+            self.assertEqual(c1, [])
+            self.assertEqual(c2, [])
+        n.dataReceived(',')
+        self.assertEqual(c1, [msg])
+        self.assertEqual(c2, [])
 
 
 
@@ -98,7 +180,7 @@ class LoggingProtocolTest(TestCase):
         
         # fake control receiver
         called = []
-        proto.ctlReceived = called.append
+        proto.sendControl = called.append
         
         reactor.spawnProcess(proto, '/bin/echo', ['echo', 'foo'])
         
@@ -124,7 +206,7 @@ class LoggingProtocolTest(TestCase):
 
         # fake control receiver
         called = []
-        proto.ctlReceived = called.append
+        proto.sendControl = called.append
         
         # kill the process as soon as it's connected
         def connectionMade():
@@ -169,26 +251,50 @@ class LoggingProtocolTest(TestCase):
         self.assertEqual(called, [('ctl', 'wow')], "3 = control")
 
 
-    def test_ctlReceived_default(self):
+    def test_sendControl(self):
         """
-        If there's no historian, ctlReceived does nothing by default, or at
-        least has no side effects.
+        Should have no side effects by default
         """
         proto = LoggingProtocol()
-        proto.ctlReceived('foo')
+        proto.sendControl('foo')
 
 
-    def test_ctlReceived_passthru(self):
+    def test_sendControl_data(self):
         """
-        Control data can be passed through
+        If there's a control handler, pass messages to it.
+        """
+        called = []
+        
+        proto = LoggingProtocol(control=called.append)
+        proto.sendControl('foo')
+        self.assertEqual(called, ['foo'])
+        proto.sendControl('bar')
+        self.assertEqual(called, ['foo', 'bar'])
+
+
+    def test_ctlReceived_invalid(self):
+        """
+        If an invalid netstring is sent on the control signal, send the raw
+        data.
         """
         called = []
         
         proto = LoggingProtocol(control=called.append)
         proto.ctlReceived('foo')
-        proto.ctlReceived('bar')
-        self.assertEqual(called, ['foo', 'bar'])
+        
+        self.assertEqual(called[0], proto.msg_factory.fd(proto.label, 3, 'foo'))
 
+
+    def test_ctlReceived_whole(self):
+        """
+        You can pass a whole netstring on the control descriptor.
+        """
+        called = []
+        
+        proto = LoggingProtocol(control=called.append)
+        proto.ctlReceived('3:foo,')
+        
+        self.assertEqual(called[0], '3:foo,')
 
     def test_outReceived_default(self):
         """
@@ -197,7 +303,7 @@ class LoggingProtocolTest(TestCase):
         called = []
         
         proto = LoggingProtocol()
-        proto.ctlReceived = called.append
+        proto.sendControl = called.append
         
         proto.outReceived('foo')
         
@@ -223,7 +329,7 @@ class LoggingProtocolTest(TestCase):
         called = []
         
         proto = LoggingProtocol()
-        proto.ctlReceived = called.append
+        proto.sendControl = called.append
         
         proto.errReceived('foo')
         
@@ -299,7 +405,7 @@ class LoggingProtocolTest(TestCase):
         proto.makeConnection(transport)
 
         called = []
-        proto.ctlReceived = called.append
+        proto.sendControl = called.append
         
         proto.write('foo')
         self.assertEqual(called[0], proto.msg_factory.fd(proto.label, 0, 'foo'))
@@ -312,7 +418,7 @@ class LoggingProtocolTest(TestCase):
         proto = LoggingProtocol()
         
         called = []
-        proto.ctlReceived = called.append
+        proto.sendControl = called.append
         
         proto.logSpawn('/bin/bash', ['bash', 'foo'], {'FOO':'BAR'},
                        '/tmp', 'user1', 'group1', usePTY=False)
@@ -329,7 +435,7 @@ class LoggingProtocolTest(TestCase):
         proto = LoggingProtocol()
         
         called = []
-        proto.ctlReceived = called.append
+        proto.sendControl = called.append
         
         proto.logSpawn('/bin/bash')
         self.assertEqual(called[0], proto.msg_factory.processSpawned(
