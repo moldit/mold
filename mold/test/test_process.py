@@ -15,6 +15,14 @@ class LoggingProtocolTest(TestCase):
         """
         proto = LoggingProtocol()
         self.assertNotEqual(proto.label, None)
+        
+
+    def test_init(self):
+        """
+        L{LoggingProtocol} should accept a label.
+        """
+        proto = LoggingProtocol(label='foo')
+        self.assertEqual(proto.label, 'foo')
 
 
     def test_childDataReceived(self):
