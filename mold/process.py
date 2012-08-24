@@ -21,13 +21,16 @@ class LoggingProtocol(protocol.ProcessProtocol):
     label = None
 
     
-    def __init__(self, historian=None):
+    def __init__(self, historian=None, label=None):
         """
         @param historian: A function that will be given strings of control data
             as they are received by this protocol.
+        
+        @param label: String label identifying the process for which I am a
+            protocol.
         """
         self.historian = historian or (lambda x:None)
-        self.label = str(uuid.uuid4()).encode('hex')
+        self.label = label or str(uuid.uuid4().bytes).encode('base64')
     
     
     def childDataReceived(self, childfd, data):
