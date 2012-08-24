@@ -179,20 +179,25 @@ class LoggingProtocolTest(TestCase):
         You can pass a string to be sent on stdin as soon as the protocol is
         connected.
         """
-        called = []
         transport = StringTransport()
-        transport.closeStdin = lambda: called.append('closeStdin')
         
         proto = LoggingProtocol(stdin='foo')
+        
+        written = []
+        proto.write = written.append
+        
+        called = []
+        proto.closeStdin = lambda: called.append('closeStdin')
+        
         proto.makeConnection(transport)
         
-        self.assertEqual(transport.value(), 'foo', "Should write to stdin")
+        self.assertEqual(written, ['foo'], "Should write to stdin")
         self.assertEqual(called, ['closeStdin'], "Should have closed stdin")
 
 
-    def test_no_stdin(self):
+    def test_write(self):
         """
-        If no stdin is given, stdin should not be closed.
+        If no stdin is given, stdin should not be closed, but can be later.
         """
         called = []
         transport = StringTransport()
@@ -203,6 +208,35 @@ class LoggingProtocolTest(TestCase):
         
         self.assertEqual(transport.value(), '', "Should not write to stdin")
         self.assertEqual(called, [], "Should not close stdin")
+        
+        proto.write('foo')
+        self.assertEqual(transport.value(), 'foo')
+        self.assertEqual(called, [], "Should not close stdin")
 
+        proto.write('bar')
+        self.assertEqual(transport.value(), 'foobar')
+        self.assertEqual(called, [], "Should not close stdin")
+
+        proto.closeStdin()
+        self.assertEqual(called, ['closeStdin'], "Should close stdin")
+
+
+    def test_stdin_to_control(self):
+        """
+        Things written to stdin are also written to control.
+        """
+        transport = StringTransport()
+        
+        proto = LoggingProtocol()
+        proto.makeConnection(transport)
+
+        called = []
+        proto.ctlReceived = called.append
+        
+        proto.write('foo')
+        data = json.loads(called[0])
+        self.assertEqual(data['fd'], 0, "stdin is fd 0")
+        self.assertEqual(data['m'], 'foo', "Message")
+        self.assertEqual(data['lab'], proto.label)
 
 

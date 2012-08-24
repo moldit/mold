@@ -34,8 +34,8 @@ class LoggingProtocol(protocol.ProcessProtocol):
         @type stdin: string
         @param stdin: string to send process as soon as it's connected.  Note
             that this will close stdin as soon as the data is sent.  If you do
-            not want this behavior, please call my C{transport.write} method
-            and close stdin with C{transport.closeStdin()} when you're done.
+            not want this behavior, please call L{write} and close stdin with
+            L{closeStdin()} when you're done.
         
         @param stdout: Function that will be given each string of stdout
             received by me.
@@ -58,8 +58,27 @@ class LoggingProtocol(protocol.ProcessProtocol):
         As soon as I am connected to the process.
         """
         if self._stdin is not None:
-            self.transport.write(self._stdin)
-            self.transport.closeStdin()
+            self.write(self._stdin)
+            self.closeStdin()
+
+
+    def write(self, data):
+        """
+        Write data to the process' stdin.
+        """
+        self.ctlReceived(json.dumps({
+            'fd': 0,
+            'm': data,
+            'lab': self.label,
+        }))
+        self.transport.write(data)
+
+
+    def closeStdin(self):
+        """
+        Close the process' stdin
+        """
+        self.transport.closeStdin()
 
     
     def childDataReceived(self, childfd, data):
