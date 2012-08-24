@@ -6,7 +6,7 @@ template_root = FilePath(__file__).parent().child('templates')
 
 
 
-class MinionDirectory:
+class Directory:
 
 
     def __init__(self, path):
