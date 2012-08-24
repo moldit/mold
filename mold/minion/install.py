@@ -14,7 +14,7 @@ class Directory:
 
 
     def install(self):        
-        template_root.child('minion').copyTo(self.path)
+        template_root.child('bin').copyTo(self.path)
 
         
         
