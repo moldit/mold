@@ -1,7 +1,10 @@
 from twisted.trial.unittest import TestCase
 
+import json
+
 
 from mold.log import MessageFactory
+
 
 
 class MessageFactoryTest(TestCase):
@@ -12,7 +15,7 @@ class MessageFactoryTest(TestCase):
         You can signal bytes moving over a file descriptor
         """
         f = MessageFactory()
-        m = f.fd('label', 0, 'hello')
+        m = json.loads(f.fd('label', 0, 'hello'))
         
         self.assertEqual(m['ev'], 'fd')
         self.assertEqual(m['fd'], 0)
@@ -25,7 +28,7 @@ class MessageFactoryTest(TestCase):
         You can signal that a process ended
         """
         f = MessageFactory()
-        m = f.processEnded('label', 1, 2)
+        m = json.loads(f.processEnded('label', 1, 2))
 
         self.assertEqual(m['ev'], 'pexit')
         self.assertEqual(m['lab'], 'label')

@@ -5,6 +5,8 @@ XXX
 from twisted.internet import protocol, defer
 
 
+from mold.log import MessageFactory
+
 import json
 import uuid
 
@@ -26,7 +28,7 @@ class LoggingProtocol(protocol.ProcessProtocol):
 
     
     def __init__(self, label=None, stdin=None, stdout=None, stderr=None,
-                 control=None):
+                 control=None, msg_factory=None):
         """      
         @param label: String label identifying the process for which I am a
             protocol.
@@ -45,6 +47,7 @@ class LoggingProtocol(protocol.ProcessProtocol):
             received by me.
         """
         self.label = label or str(uuid.uuid4().bytes).encode('base64')
+        self.msg_factory = msg_factory or MessageFactory()
         self.done = defer.Deferred()
 
         self._stdin = stdin
@@ -66,11 +69,7 @@ class LoggingProtocol(protocol.ProcessProtocol):
         """
         Write data to the process' stdin.
         """
-        self.ctlReceived(json.dumps({
-            'fd': 0,
-            'm': data,
-            'lab': self.label,
-        }))
+        self.ctlReceived(self.msg_factory.fd(self.label, 0, data))
         self.transport.write(data)
 
 
@@ -108,12 +107,8 @@ class LoggingProtocol(protocol.ProcessProtocol):
         
         @param data: a string
         """
+        self.ctlReceived(self.msg_factory.fd(self.label, 1, data))
         self._stdout(data)
-        self.ctlReceived(json.dumps({
-            'fd': 1,
-            'm': data,
-            'lab': self.label,
-        }))
 
 
     def errReceived(self, data):
@@ -122,21 +117,13 @@ class LoggingProtocol(protocol.ProcessProtocol):
         
         @param data: a string
         """
+        self.ctlReceived(self.msg_factory.fd(self.label, 2, data))
         self._stderr(data)
-        self.ctlReceived(json.dumps({
-            'fd': 2,
-            'm': data,
-            'lab': self.label,
-        }))
 
 
     def processEnded(self, status):
-        self.ctlReceived(json.dumps({
-            'ev': 'pexit',
-            'lab': self.label,
-            'exitCode': status.value.exitCode,
-            'signal': status.value.signal,
-        }))
+        self.ctlReceived(self.msg_factory.processEnded(
+            self.label, status.value.exitCode, status.value.signal))
         if status.value.exitCode != 0:
             self.done.errback(status)
         else:

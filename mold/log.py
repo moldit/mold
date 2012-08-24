@@ -1,4 +1,6 @@
 
+import json
+
 
 
 class MessageFactory(object):
@@ -8,18 +10,18 @@ class MessageFactory(object):
 
     
     def fd(self, label, fd, data):
-        return {
+        return json.dumps({
             'lab': label,
             'ev': 'fd',
             'fd': fd,
             'm': data,
-        }
+        })
 
 
     def processEnded(self, label, exitCode, signal):
-        return {
+        return json.dumps({
             'lab': label,
             'ev': 'pexit',
             'exitCode': exitCode,
             'signal': signal,
-        }
+        })

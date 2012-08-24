@@ -8,6 +8,7 @@ import json
 
 
 from mold.process import LoggingProtocol
+from mold.log import MessageFactory
 
 
 
@@ -23,14 +24,17 @@ class LoggingProtocolTest(TestCase):
         """
         proto = LoggingProtocol()
         self.assertNotEqual(proto.label, None)
+        self.assertTrue(isinstance(proto.msg_factory, MessageFactory))
         
 
     def test_init(self):
         """
         L{LoggingProtocol} should accept a label.
         """
-        proto = LoggingProtocol(label='foo')
+        f = MessageFactory()
+        proto = LoggingProtocol(label='foo', msg_factory=f)
         self.assertEqual(proto.label, 'foo')
+        self.assertEqual(proto.msg_factory, f)
 
 
     def test_done(self):
@@ -51,12 +55,9 @@ class LoggingProtocolTest(TestCase):
             exitcode, signal = response
             self.assertEqual(exitcode, 0)
             self.assertEqual(signal, None)
-            data = json.loads(called[-1])
-            self.assertEqual(data['lab'], proto.label, data)
-            self.assertEqual(data['ev'], 'pexit', "Should indicate that the "
-                             "process exited")
-            self.assertEqual(data['exitCode'], 0)
-            self.assertEqual(data['signal'], None)
+            
+            self.assertEqual(called[-1],
+                proto.msg_factory.processEnded(proto.label, 0, None))
             
         return proto.done.addCallback(check)
 
@@ -88,12 +89,8 @@ class LoggingProtocolTest(TestCase):
             self.assertNotEqual(response.value.exitCode, 0)
             self.assertEqual(response.value.signal, 9)
             
-            data = json.loads(called[-1])
-            self.assertEqual(data['lab'], proto.label, data)
-            self.assertEqual(data['ev'], 'pexit', "Should indicate that the "
-                             "process exited")
-            self.assertEqual(data['exitCode'], response.value.exitCode)
-            self.assertEqual(data['signal'], response.value.signal)
+            self.assertEqual(called[-1],
+                proto.msg_factory.processEnded(proto.label, None, 9))
         
         return proto.done.addCallbacks(cb, eb)
 
@@ -152,10 +149,9 @@ class LoggingProtocolTest(TestCase):
         proto.ctlReceived = called.append
         
         proto.outReceived('foo')
-        data = json.loads(called[0])
-        self.assertEqual(data['fd'], 1, "File descriptor number should be passed")
-        self.assertEqual(data['m'], 'foo', "Message should be passed")
-        self.assertEqual(data['lab'], proto.label, "Should send the label")
+        
+        self.assertEqual(called[0],
+                proto.msg_factory.fd(proto.label, 1, 'foo'))
 
 
     def test_outReceived_passthru(self):
@@ -179,10 +175,9 @@ class LoggingProtocolTest(TestCase):
         proto.ctlReceived = called.append
         
         proto.errReceived('foo')
-        data = json.loads(called[0])
-        self.assertEqual(data['fd'], 2, "File descriptor number should be passed")
-        self.assertEqual(data['m'], 'foo', "Message should be passed")
-        self.assertEqual(data['lab'], proto.label, "Should send the label")
+        
+        self.assertEqual(called[0],
+                proto.msg_factory.fd(proto.label, 2, 'foo'))
 
 
     def test_errReceived_passthru(self):
@@ -219,7 +214,7 @@ class LoggingProtocolTest(TestCase):
 
     def test_write(self):
         """
-        If no stdin is given, stdin should not be closed, but can be later.
+        You can write straight to stdin.
         """
         called = []
         transport = StringTransport()
@@ -243,7 +238,7 @@ class LoggingProtocolTest(TestCase):
         self.assertEqual(called, ['closeStdin'], "Should close stdin")
 
 
-    def test_stdin_to_control(self):
+    def test_write_goes_to_control(self):
         """
         Things written to stdin are also written to control.
         """
@@ -256,9 +251,6 @@ class LoggingProtocolTest(TestCase):
         proto.ctlReceived = called.append
         
         proto.write('foo')
-        data = json.loads(called[0])
-        self.assertEqual(data['fd'], 0, "stdin is fd 0")
-        self.assertEqual(data['m'], 'foo', "Message")
-        self.assertEqual(data['lab'], proto.label)
+        self.assertEqual(called[0], proto.msg_factory.fd(proto.label, 0, 'foo'))
 
 
