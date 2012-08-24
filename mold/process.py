@@ -9,6 +9,31 @@ from mold.log import MessageFactory
 
 import json
 import uuid
+import os
+
+
+
+def spawnLogged(reactor, proto, executable, args, env, path,
+                uid=None, gid=None, usePTY=False):
+    fds = {
+        0: 'w',
+        1: 'r',
+        2: 'r',
+        3: 'r',
+    }
+    log_args = {
+        'label': proto.label,
+        'bin': executable,
+        'args': args,
+        'env': env,
+        'path': path,
+        'uid': uid or os.geteuid(),
+        'gid': gid or os.getegid(),
+        'usePTY': usePTY,
+    }
+    proto.ctlReceived(proto.msg_factory.processSpawned(**log_args))
+    reactor.spawnProcess(proto, executable, args, env, path, usePTY=usePTY,
+                         childFDs=fds)
 
 
 

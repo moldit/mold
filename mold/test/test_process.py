@@ -5,11 +5,61 @@ from twisted.python.filepath import FilePath
 
 
 import json
+import os
 
 
-from mold.process import LoggingProtocol
+from mold.process import LoggingProtocol, spawnLogged
 from mold.log import MessageFactory
 
+
+
+class spawnLoggedTest(TestCase):
+
+
+    timeout = 1
+
+
+    def test_functional(self):
+        """
+        Spawn should actually execute the program and return the expected
+        output.
+        """
+        script = FilePath(self.mktemp())
+        script.setContent('echo "stdout"\n'
+                          'echo "stderr" >&2\n'
+                          'echo "control" >&3\n')
+        
+        called = []
+        proto = LoggingProtocol(stdin='theinput', control=called.append)
+        
+        spawnLogged(reactor, proto, '/bin/bash', ['bash', script.path],
+              {'FOO':'BAR'}, '/tmp', usePTY=False)
+        
+        def check(result):
+            code, sig = result
+            self.assertEqual(code, 0)
+            self.assertEqual(sig, None)
+            
+            # assert logging happened
+            start_msg = proto.msg_factory.processSpawned(proto.label,
+                '/bin/bash', ['bash', script.path],
+                {'FOO':'BAR'}, '/tmp', os.geteuid(), os.getegid(), False)
+            self.assertIn(start_msg, called, 'Expected:\n%r\n\nin:\n%s' % (
+                            start_msg, '\n'.join(called)))
+            
+            msg = proto.msg_factory.fd(proto.label, 0, 'theinput')
+            self.assertIn(msg, called, "Should have logged the input")
+            
+            msg = proto.msg_factory.fd(proto.label, 1, 'stdout\n')
+            self.assertIn(msg, called, "Should have logged stdout")
+            
+            msg = proto.msg_factory.fd(proto.label, 2, 'stderr\n')
+            self.assertIn(msg, called, "Should have logged stderr")
+            
+            self.assertIn('control\n', called, "Control should go right through:"
+                                       "\n%s\n\n%s" % (msg, '\n'.join(called)))
+        
+        return proto.done.addCallback(check)
 
 
 class LoggingProtocolTest(TestCase):
