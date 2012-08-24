@@ -21,10 +21,17 @@ class LoggingProtocol(protocol.ProcessProtocol):
     label = None
 
     
-    def __init__(self, label=None, stdout=None, stderr=None, control=None):
+    def __init__(self, label=None, stdin=None, stdout=None, stderr=None,
+                 control=None):
         """      
         @param label: String label identifying the process for which I am a
             protocol.
+        
+        @type stdin: string
+        @param stdin: string to send process as soon as it's connected.  Note
+            that this will close stdin as soon as the data is sent.  If you do
+            not want this behavior, please call my C{transport.write} method
+            and close stdin with C{transport.closeStdin()} when you're done.
         
         @param stdout: Function that will be given each string of stdout
             received by me.
@@ -34,10 +41,20 @@ class LoggingProtocol(protocol.ProcessProtocol):
             received by me.
         """
         self.label = label or str(uuid.uuid4().bytes).encode('base64')
+        self._stdin = stdin
         self._stdout = stdout or (lambda x:None)
         self._stderr = stderr or (lambda x:None)
         self._control = control or (lambda x:None)
-    
+
+
+    def connectionMade(self):
+        """
+        As soon as I am connected to the process.
+        """
+        if self._stdin is not None:
+            self.transport.write(self._stdin)
+            self.transport.closeStdin()
+
     
     def childDataReceived(self, childfd, data):
         """
@@ -86,3 +103,4 @@ class LoggingProtocol(protocol.ProcessProtocol):
             'm': data,
             'lab': self.label,
         }))
+

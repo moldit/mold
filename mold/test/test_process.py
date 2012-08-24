@@ -131,9 +131,30 @@ class LoggingProtocolTest(TestCase):
         You can pass a string to be sent on stdin as soon as the protocol is
         connected.
         """
+        called = []
         transport = StringTransport()
+        transport.closeStdin = lambda: called.append('closeStdin')
         
         proto = LoggingProtocol(stdin='foo')
         proto.makeConnection(transport)
-    
+        
+        self.assertEqual(transport.value(), 'foo', "Should write to stdin")
+        self.assertEqual(called, ['closeStdin'], "Should have closed stdin")
+
+
+    def test_no_stdin(self):
+        """
+        If no stdin is given, stdin should not be closed.
+        """
+        called = []
+        transport = StringTransport()
+        transport.closeStdin = lambda: called.append('closeStdin')
+        
+        proto = LoggingProtocol()
+        proto.makeConnection(transport)
+        
+        self.assertEqual(transport.value(), '', "Should not write to stdin")
+        self.assertEqual(called, [], "Should not close stdin")
+
+
 
