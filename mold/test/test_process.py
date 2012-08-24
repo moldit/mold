@@ -38,14 +38,25 @@ class LoggingProtocolTest(TestCase):
         The protocol should have a C{done} Deferred which fires with the exit
         code when it's done.
         """
-        proto = LoggingProtocol()
+        proto = LoggingProtocol()    
         self.assertFalse(proto.done.called)        
+        
+        # fake control receiver
+        called = []
+        proto.ctlReceived = called.append
+        
         reactor.spawnProcess(proto, '/bin/echo', ['echo', 'foo'])
         
         def check(response):
             exitcode, signal = response
             self.assertEqual(exitcode, 0)
             self.assertEqual(signal, None)
+            data = json.loads(called[-1])
+            self.assertEqual(data['lab'], proto.label, data)
+            self.assertEqual(data['ev'], 'pexit', "Should indicate that the "
+                             "process exited")
+            self.assertEqual(data['exitCode'], 0)
+            self.assertEqual(data['signal'], None)
             
         return proto.done.addCallback(check)
 
@@ -58,6 +69,10 @@ class LoggingProtocolTest(TestCase):
         script.setContent('sleep 500')
                
         proto = LoggingProtocol()
+
+        # fake control receiver
+        called = []
+        proto.ctlReceived = called.append
         
         # kill the process as soon as it's connected
         def connectionMade():
@@ -72,6 +87,13 @@ class LoggingProtocolTest(TestCase):
         def eb(response):
             self.assertNotEqual(response.value.exitCode, 0)
             self.assertEqual(response.value.signal, 9)
+            
+            data = json.loads(called[-1])
+            self.assertEqual(data['lab'], proto.label, data)
+            self.assertEqual(data['ev'], 'pexit', "Should indicate that the "
+                             "process exited")
+            self.assertEqual(data['exitCode'], response.value.exitCode)
+            self.assertEqual(data['signal'], response.value.signal)
         
         return proto.done.addCallbacks(cb, eb)
 

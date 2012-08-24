@@ -131,6 +131,12 @@ class LoggingProtocol(protocol.ProcessProtocol):
 
 
     def processEnded(self, status):
+        self.ctlReceived(json.dumps({
+            'ev': 'pexit',
+            'lab': self.label,
+            'exitCode': status.value.exitCode,
+            'signal': status.value.signal,
+        }))
         if status.value.exitCode != 0:
             self.done.errback(status)
         else:
