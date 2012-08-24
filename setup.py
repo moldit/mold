@@ -10,6 +10,7 @@ setup(
         'mold', 'mold.test',
         'mold.inspector', 'mold.inspector.test',
         'mold.script', 'mold.script.test',
+        'mold.install',
     ],
     install_requires=[
         'Twisted>=10.2.0',
@@ -18,5 +19,5 @@ setup(
     ],
     scripts=[
         'bin/mold',
-    ]
+    ],
 )

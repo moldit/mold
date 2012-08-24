@@ -1,0 +1,24 @@
+#!/usr/bin/python
+
+from twisted.internet import reactor
+from twisted.python.filepath import FilePath
+from mold.inspector.general import Inspector
+
+me = FilePath(__file__)
+
+import sys
+import json
+
+resources = json.loads(sys.stdin.read())
+
+def go(resources):
+    i = Inspector(me.parent().child('inspectors').path)
+    done = i.inspect(resources)
+    
+    def cb(result):
+        print json.dumps(result, indent=4)
+        reactor.stop()
+    done.addBoth(cb)
+
+reactor.callWhenRunning(go, resources)
+reactor.run()
