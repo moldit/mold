@@ -2,23 +2,42 @@
 
 from twisted.internet import reactor
 from twisted.python.filepath import FilePath
-from mold.inspector.general import Inspector
 
-me = FilePath(__file__)
+from mold.process import LoggingProtocol, spawnLogged
 
+import os
 import sys
 import json
 
+
+inspectors = FilePath(__file__).parent().child('inspectors')
 resources = json.loads(sys.stdin.read())
 
+
 def go(resources):
-    i = Inspector(me.parent().child('inspectors').path)
-    done = i.inspect(resources)
+    # only singleton support
+    resource = resources
+
+    i = inspectors.child(resource['kind'])
+    if not i.exists():
+        reactor.stop()
+        raise Exception('No such resource: %r' % resource['kind'])
+
+    stdout = []
+    proto = LoggingProtocol(stdin=json.dumps(resource),
+                            stdout=stdout.append)
+    spawnLogged(reactor, proto, '/bin/bash', ['bash', '-c', str(i.path)])
     
     def cb(result):
-        print json.dumps(result, indent=4)
+        print json.dumps(json.loads(''.join(stdout)), indent=4)
+    def eb(result):
+        pass
+    def final(result):
         reactor.stop()
-    done.addBoth(cb)
+        
+    proto.done.addCallbacks(cb, eb)
+    proto.done.addBoth(final)
+
 
 reactor.callWhenRunning(go, resources)
 reactor.run()

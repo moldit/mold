@@ -1,5 +1,5 @@
 #!/bin/bash
 
-echo -n '{"kind": "file", "name": "foo"}'
+echo -n '{"kind": "file", "name": "foo", "exists": false}'
 echo "err" >&2
 echo -n "3:err," >&3
