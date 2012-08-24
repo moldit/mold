@@ -1,6 +1,9 @@
 from twisted.trial.unittest import TestCase
+from twisted.test.proto_helpers import StringTransport
+
 
 import json
+
 
 from mold.process import LoggingProtocol
 
@@ -122,4 +125,15 @@ class LoggingProtocolTest(TestCase):
         proto.errReceived('foo')
         self.assertEqual(called, ['foo'], "Should have sent stderr")
 
+
+    def test_stdin_on_init(self):
+        """
+        You can pass a string to be sent on stdin as soon as the protocol is
+        connected.
+        """
+        transport = StringTransport()
+        
+        proto = LoggingProtocol(stdin='foo')
+        proto.makeConnection(transport)
+    
 
