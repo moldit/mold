@@ -99,3 +99,6 @@ class LoggingProtocolTest(TestCase):
         data = json.loads(called[0])
         self.assertEqual(data['fd'], 2, "File descriptor number should be passed")
         self.assertEqual(data['m'], 'foo', "Message should be passed")
+        self.assertEqual(data['lab'], proto.label, "Should send the label")
+
+

@@ -73,4 +73,8 @@ class LoggingProtocol(protocol.ProcessProtocol):
         
         @param data: a string
         """
-        self.ctlReceived(json.dumps({'fd':2, 'm':data}))
+        self.ctlReceived(json.dumps({
+            'fd': 2,
+            'm': data,
+            'lab': self.label,
+        }))
