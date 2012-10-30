@@ -63,6 +63,7 @@ And to make ``/tmp/foo`` conform to an expected state, you could do:
         "user": "joe",
         "src": "http://www.example.com/foo.png"
     }
+    ^D
 
 
 Script interface
@@ -92,8 +93,8 @@ descriptors plus an optional logging control file descriptor (fd 3):
   
   .. code-block:: bash
      
-      /bin/bash actor-script
-      /bin/bash actor-script 3>/dev/null
+      /bin/bash some_script
+      /bin/bash some_script 3>/dev/null
 
 Scripts must return 0 to indicate success and any other exit code to indicate failure.
 
