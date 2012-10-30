@@ -11,6 +11,7 @@ setup(
         'mold.inspector', 'mold.inspector.test',
         'mold.script', 'mold.script.test',
         'mold.install',
+        'twisted.plugins',
     ],
     install_requires=[
         'Twisted>=10.2.0',
@@ -21,3 +22,11 @@ setup(
         'bin/mold',
     ],
 )
+
+
+try:
+    from twisted.plugin import IPlugin, getPlugins
+except ImportError:
+    pass
+else:
+    list(getPlugins(IPlugin))
