@@ -30,10 +30,22 @@ similar to this:
 
     minion/
         certs/
+        facts/
+            os
         resources/
             file
             cron
             user
+
+Fact scripts
+-------------------------------------------------------------------------------
+
+The executable scripts in ``minion/facts`` accept no arguments or stdin.  They
+return facts about the system on stdout.
+
+When a minion is asked for the facts of the system, all the scripts in the
+``minion/facts`` directory are run and combined into a single fact document.
+
 
 
 Resource scripts
