@@ -45,6 +45,28 @@ return facts about the system on stdout.
 
 When a minion is asked for the facts of the system, all the scripts in the
 ``minion/facts`` directory are run and combined into a single fact document.
+For instance, the output of ``/minion/facts/foo`` might be:
+
+.. code-block:: javascript
+
+    {
+        "cats": 10,
+        "dogs": 20,
+        "gorillas": "no gorillas"
+    }
+
+This would be combined into the single fact document by using the filename 
+``foo`` as the key:
+
+.. code-block:: javascript
+
+    {
+        "foo": {
+            "cats": 10,
+            "dogs": 20,
+            "gorillas": "no gorillas"
+        }
+    }
 
 
 
