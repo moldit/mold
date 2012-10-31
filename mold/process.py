@@ -6,6 +6,7 @@ from twisted.internet import protocol, defer
 
 
 from mold.log import MessageFactory
+from mold import ch3
 
 import json
 import uuid
@@ -28,14 +29,14 @@ class Channel3Protocol(protocol.ProcessProtocol):
 
 
     def childDataReceived(self, childfd, data):
-        self._ch3_receiver((self.name, childfd, {'line': data}))
+        self._ch3_receiver(ch3.fd(self.name, childfd, data))
 
 
     def write(self, data):
         """
         Write to stdin
         """
-        self._ch3_receiver((self.name, 0, {'line': data}))
+        self._ch3_receiver(ch3.fd(self.name, 0, data))
         self.transport.write(data)
 
 

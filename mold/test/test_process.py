@@ -10,6 +10,7 @@ import os
 
 from mold.process import (Channel3Protocol, LoggingProtocol, spawnLogged,
                           NetstringBuffer)
+from mold import ch3
 from mold.log import MessageFactory
 
 
@@ -34,7 +35,7 @@ class Channel3ProtocolTest(TestCase):
         data = []
         p = Channel3Protocol('joe', data.append)
         p.childDataReceived(1, 'some data')
-        self.assertEqual(data[0], ('joe', 1, {'line': 'some data'}))
+        self.assertEqual(data[0], ch3.fd('joe', 1, 'some data'))
 
 
     def test_stderr(self):
@@ -44,7 +45,7 @@ class Channel3ProtocolTest(TestCase):
         data = []
         p = Channel3Protocol('joe', data.append)
         p.childDataReceived(2, 'some data')
-        self.assertEqual(data[0], ('joe', 2, {'line': 'some data'}))
+        self.assertEqual(data[0], ch3.fd('joe', 2, 'some data'))
 
 
     def test_write(self):
@@ -56,7 +57,7 @@ class Channel3ProtocolTest(TestCase):
         p = Channel3Protocol('joe', data.append)
         p.makeConnection(t)
         p.write('foo bar')
-        self.assertEqual(data[0], ('joe', 0, {'line': 'foo bar'}))
+        self.assertEqual(data[0], ch3.fd('joe', 0, 'foo bar'))
         self.assertEqual(t.value(), 'foo bar')
 
 
