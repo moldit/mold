@@ -8,8 +8,7 @@ import json
 import os
 
 
-from mold.process import (Channel3Protocol, LoggingProtocol, spawnLogged,
-                          NetstringBuffer)
+from mold.process import (Channel3Protocol, LoggingProtocol, spawnLogged)
 from mold import ch3
 from mold.log import MessageFactory
 
@@ -71,88 +70,6 @@ class Channel3ProtocolTest(TestCase):
         info = ch3.fd('jim', 2, 'foo bar')
         p.childDataReceived(3, '%d:%s,' % (len(info), info))
         self.assertEqual(data[0], ch3.fd('joe.jim', 2, 'foo bar'))
-
-
-
-class NetstringBufferTest(TestCase):
-
-
-    def test_whole(self):
-        """
-        Whole netstrings are allowed
-        """
-        called = []
-        n = NetstringBuffer(called.append)
-        n.dataReceived('3:foo,')
-        self.assertEqual(called, ['foo'])
-
-
-    def test_two(self):
-        """
-        Two netstrings are allowed
-        """
-        called = []
-        n = NetstringBuffer(called.append)
-        n.dataReceived('3:foo,4:foot,')
-        self.assertEqual(called, ['foo', 'foot'])
-
-
-    def test_invalid(self):
-        """
-        Invalid netstrings are sent to the error collector
-        """
-        c1 = []
-        c2 = []
-        n = NetstringBuffer(c1.append, c2.append)
-        n.dataReceived('foobar2:ok,something3:foohello9')
-        self.assertEqual(c1, ['ok'])
-        self.assertEqual(c2, ['foobar', 'something', '3:foohello'])
-
-
-    def test_leading0(self):
-        c1 = []
-        c2 = []
-        n = NetstringBuffer(c1.append, c2.append)
-        n.dataReceived('02:ok,0:,')
-        self.assertEqual(c1, ['ok', ''])
-        self.assertEqual(c2, ['0'])
-
-
-    def test_partial(self):
-        """
-        You can get the string a part at a time
-        """
-        c1 = []
-        c2 = []
-        n = NetstringBuffer(c1.append, c2.append)
-        n.dataReceived('3:a')
-        self.assertEqual(c1, [])
-        self.assertEqual(c2, [])
-        n.dataReceived('bc')
-        self.assertEqual(c1, [])
-        self.assertEqual(c2, [])
-        n.dataReceived(',')
-        self.assertEqual(c1, ['abc'])
-        self.assertEqual(c2, [])
-
-
-    def test_partial_length(self):
-        """
-        You can get a string a piece at a time, even the length
-        """
-        c1 = []
-        c2 = []
-        n = NetstringBuffer(c1.append, c2.append)
-        
-        msg = 'a' * 8920
-        s = '%s:%s' % (len(msg), msg)
-        for c in s:
-            n.dataReceived(c)
-            self.assertEqual(c1, [])
-            self.assertEqual(c2, [])
-        n.dataReceived(',')
-        self.assertEqual(c1, [msg])
-        self.assertEqual(c2, [])
 
 
 

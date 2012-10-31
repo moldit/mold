@@ -1,5 +1,4 @@
 from twisted.trial.unittest import TestCase
-import json
 
 
 from mold.ch3 import fd, decode, encode

@@ -1,3 +1,4 @@
+# -*- test-case-name: mold.test.test_process -*-
 """
 XXX
 """
@@ -13,10 +14,6 @@ import json
 import uuid
 import os
 import re
-
-
-
-class NotFinished(Exception): pass
 
 
 
@@ -54,88 +51,6 @@ class Channel3Protocol(protocol.ProcessProtocol):
         self._ch3_receiver(ch3.fd(self.name, 0, data))
         self.transport.write(data)
 
-
-
-class NetstringBuffer:
-
-
-    state = 'length'
-    
-    r_length = re.compile('((.*?)([0-9]+):)')
-    r_nonnum = re.compile('([^0-9]+)')
-
-    
-    def __init__(self, goodstring, badstring=None):
-        """
-        @param goodstring: Function that will be called once per good string
-            encountered.
-        @param badstring: Function that will be called with each malformed
-            string as it's encountered.
-        """
-        self._buffer = ''
-        self.length = ''
-        self.string = ''
-        self.goodstring = goodstring
-        self.badstring = badstring or (lambda x:None)
-
-
-    def dataReceived(self, data):
-        self._buffer += data
-        self.parseBuffer()
-
-
-    def parseBuffer(self):
-        while self._buffer:
-            m = getattr(self, 'parse_'+self.state)
-            try:
-                self.state = m()
-            except NotFinished:
-                break
-
-    def parse_length(self):
-        m = self.r_length.match(self._buffer)
-        if not m:
-            m = self.r_nonnum.match(self._buffer)
-            if m:
-                bad = m.groups()[0]
-                self._buffer = self._buffer[len(bad):]
-                self.badstring(bad)
-            raise NotFinished()
-        
-        whole, bad, good = m.groups()
-        while len(good) > 1 and good[0] == '0':
-            bad += '0'
-            good = good[1:]
-        if bad:
-            self.badstring(bad)
-        self.length = long(good)
-        self._buffer = self._buffer[len(whole):]
-        return 'string'
-
-
-    def parse_string(self):
-        remaining = self.length - len(self.string)
-        self.string += self._buffer[:remaining]
-        self._buffer = self._buffer[remaining:]
-        if len(self.string) == self.length:
-            # done with string
-            if not self._buffer:
-                return 'string'
-            elif self._buffer[0] == ',':
-                self._buffer = self._buffer[1:]
-                self.goodstring(self.string)
-                self.string = ''
-                self.length = ''
-                return 'length'
-            else:
-                m = self.r_nonnum.match(self._buffer)
-                bad = ('%s:'% self.length) + self._buffer
-                self.badstring(self._buffer)
-                self.string = ''
-                self.length = ''
-                return 'length'
-        return 'string'
-        
 
 
 def spawnLogged(reactor, proto, executable, args=(), env={}, path=None,
