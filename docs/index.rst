@@ -23,7 +23,7 @@ descriptors plus an optional logging control file descriptor (fd 3):
   determined solely by the exit code.  Things written to stderr do NOT
   need to be JSON documents.
 
-- ``logctl`` (3): (XXX protocol to be determined).  Things written to this
+- ``log`` (3): (XXX protocol to be determined).  Things written to this
   channel are passed through to the historian.  It is expected that this 
   channel will be used to upload log files, indicate steps in a process, 
   label stdin/out/err for each spawned process, etc...
@@ -39,7 +39,6 @@ descriptors plus an optional logging control file descriptor (fd 3):
 
 Scripts must return 0 to indicate success and any other exit code to indicate
 failure.
-
 
 
 Master
@@ -173,6 +172,125 @@ These are supported by using a custom command-line argument (in place of
 
 To add a custom resource, put an executable file in ``minion/resources/`` that
 behaves as indicated above.
+
+
+``log`` protocol
+===============================================================================
+
+The log channel is meant for getting all stdin, stdout, stderr and other
+logging/debugging information back to the historian.
+
+Things written to the log channel are encoded in JSON tuples wrapped in
+netstrings.  Each tuple has 3 items:
+
+1. Child process name or '' if the current process
+2. Key
+3. Data
+
+For instance, if I were indicating to my parent process that I
+received stdout from my child process (named ``jim``), I would write this to
+the ``log`` fd:
+
+    ::
+        
+        57:["jim", "stdout", {"line": "This is a line of stdout\n"}],
+
+
+
+Data format for various keys
+-------------------------------------------------------------------------------
+
+
+``stdout``, ``stdin``, ``stderr``
+...............................................................................
+
+.. code-block:: javascript
+
+    {
+        "type": "object",
+        "properties": {
+            "line": {
+                "type": "string",
+                "required": true,
+                "description": "Line of data",
+            },
+            "encoding": {
+                "type": "string",
+                "required": false,
+                "description": "Encoding of `line`; no encoding if not provided; options include `b64`"
+            }
+        }
+    }
+
+For example:
+
+.. code-block:: python
+
+    {'line': 'this is a line\n'}
+
+Or for binary data:
+
+.. code-block:: python
+
+    {'line': 'AAH/\n', 'encoding': 'base64'}
+
+
+``spawn``
+...............................................................................
+
+.. code-block:: javascript
+
+    {
+        "type": "object",
+        "properties": {
+            "path": {
+                "type": "string"
+            },
+            "env": {
+                "type": "object"
+            },
+            "args": {
+                "type": "array"
+            },
+            "user": {
+                "type": "string"
+            },
+            "group": {
+                "type": "string"
+            }
+        }
+    }
+
+
+For example:
+
+.. code-block:: python
+
+    {
+        'path': '/tmp/foo',
+        'env': {
+            'FOO': 'something',
+            'USER': 'joe',
+        },
+        'args': ['cat', 'afile'],
+        'user': 'joe',
+        'group': 'joe',
+    }
+
+``exitcode``
+...............................................................................
+
+.. code-block:: javascript
+
+    {
+        "type": "integer",
+    }
+
+For example:
+
+.. code-block:: python
+
+    3
 
 
 Indices and tables
