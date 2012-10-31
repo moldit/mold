@@ -3,6 +3,7 @@ XXX
 """
 
 from twisted.internet import protocol, defer
+from twisted.protocols.basic import NetstringReceiver
 
 
 from mold.log import MessageFactory
@@ -26,10 +27,24 @@ class Channel3Protocol(protocol.ProcessProtocol):
     def __init__(self, name, channel3_receiver):
         self.name = name
         self._ch3_receiver = channel3_receiver
+        
+        # some initialization happens in makeConnection
+        self._ch3_netstring = NetstringReceiver()
+        self._ch3_netstring.makeConnection(None)
+        self._ch3_netstring.stringReceived = self._ch3DataReceived
 
 
     def childDataReceived(self, childfd, data):
-        self._ch3_receiver(ch3.fd(self.name, childfd, data))
+        if childfd == 3:
+            self._ch3_netstring.dataReceived(data)
+        else:
+            self._ch3_receiver(ch3.fd(self.name, childfd, data))
+
+
+    def _ch3DataReceived(self, data):
+        name, key, val = ch3.decode(data)
+        name = '.'.join([self.name, name])
+        self._ch3_receiver(ch3.encode((name, key, val)))
 
 
     def write(self, data):
