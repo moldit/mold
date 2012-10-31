@@ -18,6 +18,28 @@ class NotFinished(Exception): pass
 
 
 
+class Channel3Protocol(protocol.ProcessProtocol):
+
+    
+    
+    def __init__(self, name, channel3_receiver):
+        self.name = name
+        self._ch3_receiver = channel3_receiver
+
+
+    def childDataReceived(self, childfd, data):
+        self._ch3_receiver((self.name, childfd, {'line': data}))
+
+
+    def write(self, data):
+        """
+        Write to stdin
+        """
+        self._ch3_receiver((self.name, 0, {'line': data}))
+        self.transport.write(data)
+
+
+
 class NetstringBuffer:
 
 

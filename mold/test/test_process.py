@@ -8,9 +8,56 @@ import json
 import os
 
 
-from mold.process import LoggingProtocol, spawnLogged, NetstringBuffer
+from mold.process import (Channel3Protocol, LoggingProtocol, spawnLogged,
+                          NetstringBuffer)
 from mold.log import MessageFactory
 
+
+
+class Channel3ProtocolTest(TestCase):
+
+
+    def test_init(self):
+        """
+        Should take a function that will be called with each piece of channel3
+        information
+        """
+        data = []
+        p = Channel3Protocol('name', data.append)
+        self.assertEqual(p.name, 'name')
+
+
+    def test_stdout(self):
+        """
+        When stdout is received, it should be sent to the channel3 receiver
+        """
+        data = []
+        p = Channel3Protocol('joe', data.append)
+        p.childDataReceived(1, 'some data')
+        self.assertEqual(data[0], ('joe', 1, {'line': 'some data'}))
+
+
+    def test_stderr(self):
+        """
+        When stderr is received, it should be sent to the channel3 receiver.
+        """
+        data = []
+        p = Channel3Protocol('joe', data.append)
+        p.childDataReceived(2, 'some data')
+        self.assertEqual(data[0], ('joe', 2, {'line': 'some data'}))
+
+
+    def test_write(self):
+        """
+        Writing to stdin should be logged.
+        """
+        data = []
+        t = StringTransport()
+        p = Channel3Protocol('joe', data.append)
+        p.makeConnection(t)
+        p.write('foo bar')
+        self.assertEqual(data[0], ('joe', 0, {'line': 'foo bar'}))
+        self.assertEqual(t.value(), 'foo bar')
 
 
 class NetstringBufferTest(TestCase):
