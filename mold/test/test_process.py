@@ -18,6 +18,9 @@ from mold.log import MessageFactory
 class Channel3ProtocolTest(TestCase):
 
 
+    timeout = 1
+
+
     def test_init(self):
         """
         Should take a function that will be called with each piece of channel3
@@ -85,6 +88,7 @@ class Channel3ProtocolTest(TestCase):
         p.processEnded(res)
         self.assertEqual(data[0], ch3.exit('joe', 0, None))
         self.assertEqual(p.done.result, res)
+        return p.done.addErrback(lambda x:None)
 
 
     def test_processEnded_signal(self):
@@ -95,6 +99,18 @@ class Channel3ProtocolTest(TestCase):
         p = Channel3Protocol('joe', data.append)
         p.processEnded(failure.Failure(error.ProcessTerminated(12, 'kill')))
         self.assertEqual(data[0], ch3.exit('joe', 12, 'kill'))
+        return p.done.addErrback(lambda x:None)
+
+
+    def test_connectionMade(self):
+        """
+        Should let you know when the connection is made
+        """
+        p = Channel3Protocol('joe', None)
+        p.connectionMade()
+        def check(r):
+            self.assertEqual(r, p)
+        return p.started.addCallback(check)
 
 
 

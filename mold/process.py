@@ -28,6 +28,7 @@ class Channel3Protocol(protocol.ProcessProtocol):
     
     def __init__(self, name, channel3_receiver):
         self.done = defer.Deferred()
+        self.started = defer.Deferred()
         self.name = name
         self._ch3_receiver = channel3_receiver
         
@@ -35,6 +36,10 @@ class Channel3Protocol(protocol.ProcessProtocol):
         self._ch3_netstring = NetstringReceiver()
         self._ch3_netstring.makeConnection(None)
         self._ch3_netstring.stringReceived = self._ch3DataReceived
+
+
+    def connectionMade(self):
+        self.started.callback(self)
 
 
     def childDataReceived(self, childfd, data):
