@@ -79,8 +79,12 @@ class Channel3ProtocolTest(TestCase):
         """
         data = []
         p = Channel3Protocol('joe', data.append)
-        p.processEnded(failure.Failure(error.ProcessDone('foo')))
+        self.assertFalse(p.done.called, "Should not have finished yet") 
+        
+        res = failure.Failure(error.ProcessDone('foo'))
+        p.processEnded(res)
         self.assertEqual(data[0], ch3.exit('joe', 0, None))
+        self.assertEqual(p.done.result, res)
 
 
     def test_processEnded_signal(self):

@@ -18,10 +18,16 @@ import re
 
 
 class Channel3Protocol(protocol.ProcessProtocol):
-
+    """
+    XXX
+    
+    @ivar done: A C{Deferred} which will fire when the process has 
+        finished.
+    """
     
     
     def __init__(self, name, channel3_receiver):
+        self.done = defer.Deferred()
         self.name = name
         self._ch3_receiver = channel3_receiver
         
@@ -59,6 +65,7 @@ class Channel3Protocol(protocol.ProcessProtocol):
         self._ch3_receiver(ch3.exit(self.name,
                                     status.value.exitCode,
                                     status.value.signal))
+        self.done.callback(status)
 
 
 
