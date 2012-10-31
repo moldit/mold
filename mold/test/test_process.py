@@ -1,7 +1,8 @@
 from twisted.trial.unittest import TestCase
 from twisted.test.proto_helpers import StringTransport
-from twisted.internet import reactor
+from twisted.internet import reactor, defer, error
 from twisted.python.filepath import FilePath
+from twisted.python import failure
 
 
 import json
@@ -70,6 +71,26 @@ class Channel3ProtocolTest(TestCase):
         info = ch3.fd('jim', 2, 'foo bar')
         p.childDataReceived(3, '%d:%s,' % (len(info), info))
         self.assertEqual(data[0], ch3.fd('joe.jim', 2, 'foo bar'))
+
+
+    def test_processEnded(self):
+        """
+        When the process ends, record the exit information
+        """
+        data = []
+        p = Channel3Protocol('joe', data.append)
+        p.processEnded(failure.Failure(error.ProcessDone('foo')))
+        self.assertEqual(data[0], ch3.exit('joe', 0, None))
+
+
+    def test_processEnded_signal(self):
+        """
+        If a process exits with a signal
+        """
+        data = []
+        p = Channel3Protocol('joe', data.append)
+        p.processEnded(failure.Failure(error.ProcessTerminated(12, 'kill')))
+        self.assertEqual(data[0], ch3.exit('joe', 12, 'kill'))
 
 
 

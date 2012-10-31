@@ -2,18 +2,22 @@ from twisted.trial.unittest import TestCase
 
 import os
 
-from mold.ch3 import fd, spawnProcess, exitCode, decode, encode
+from mold.ch3 import fd, spawnProcess, exit, decode, encode
 
 
 
-class exitCodeTest(TestCase):
+class exitTest(TestCase):
 
 
     def test_basic(self):
         """
-        It's pretty simple... just a number and a key
+        It takes an exit code and signal
         """
-        self.assertEqual(exitCode('joe', 3), encode(('joe', 'exitcode', 3)))
+        self.assertEqual(exit('joe', 3, 'signal'),
+                         encode(('joe', 'exitcode', {
+                            'code': 3,
+                            'signal': 'signal',
+                         })))
 
 
 

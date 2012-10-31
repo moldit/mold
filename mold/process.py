@@ -52,6 +52,15 @@ class Channel3Protocol(protocol.ProcessProtocol):
         self.transport.write(data)
 
 
+    def processEnded(self, status):
+        """
+        XXX
+        """
+        self._ch3_receiver(ch3.exit(self.name,
+                                    status.value.exitCode,
+                                    status.value.signal))
+
+
 
 def spawnLogged(reactor, proto, executable, args=(), env={}, path=None,
                 uid=None, gid=None, usePTY=False):

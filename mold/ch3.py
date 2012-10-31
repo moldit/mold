@@ -44,5 +44,10 @@ def spawnProcess(name, executable, args=None, env=undef, path=None, uid=None,
 
 
 
-def exitCode(name, code):
-    return encode((name, 'exitcode', code))
+def exit(name, code, signal):
+    """
+    """
+    return encode((name, 'exitcode', {
+        'code': code,
+        'signal': signal,
+    }))
