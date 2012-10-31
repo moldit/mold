@@ -23,10 +23,10 @@ descriptors plus an optional logging control file descriptor (fd 3):
   determined solely by the exit code.  Things written to stderr do NOT
   need to be JSON documents.
 
-- ``log`` (3): (XXX protocol to be determined).  Things written to this
-  channel are passed through to the historian.  It is expected that this 
-  channel will be used to upload log files, indicate steps in a process, 
-  label stdin/out/err for each spawned process, etc...
+- ``channel3`` (3): Things written to this channel are passed through to the
+  historian.  It is expected that this channel will be used to upload log files,
+  indicate steps in a process, label stdin/out/err for each spawned process,
+  etc...
   
   A script should not depend on this file descriptor being available.  So
   these two calls should have the same stdout, stderr and exit code given the
@@ -174,13 +174,13 @@ To add a custom resource, put an executable file in ``minion/resources/`` that
 behaves as indicated above.
 
 
-``log`` protocol
+``channel3`` protocol
 ===============================================================================
 
-The log channel is meant for getting all stdin, stdout, stderr and other
+Channel3 is meant for getting all stdin, stdout, stderr and other
 logging/debugging information back to the historian.
 
-Things written to the log channel are encoded in JSON tuples wrapped in
+Things written to the channel are encoded in JSON tuples wrapped in
 netstrings.  Each tuple has 3 items:
 
 1. Child process name or ``null`` if the current process
