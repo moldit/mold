@@ -6,25 +6,79 @@ the master and minion consist of normal scripts that read stdin and write to
 stdout and stderr.
 
 
+Script interface
+===============================================================================
+
+All scripts are expected to use the standard input/output file
+descriptors plus an optional logging control file descriptor (fd 3):
+
+- ``stdin`` (0): input comes from stdin.  Usually this will be a JSON 
+  document.
+
+- ``stdout`` (1): output is written to stdout.  Usually this will be
+  a JSON document.
+
+- ``stderr`` (2): errors and debugging are written to stderr.  The script may 
+  write to stderr and still be considered successful.  Success is 
+  determined solely by the exit code.  Things written to stderr do NOT
+  need to be JSON documents.
+
+- ``logctl`` (3): (XXX protocol to be determined).  Things written to this
+  channel are passed through to the historian.  It is expected that this 
+  channel will be used to upload log files, indicate steps in a process, 
+  label stdin/out/err for each spawned process, etc...
+  
+  A script should not depend on this file descriptor being available.  So
+  these two calls should have the same stdout, stderr and exit code given the
+  same stdin:
+  
+  .. code-block:: bash
+     
+      /bin/bash some_script
+      /bin/bash some_script 3>/dev/null
+
+Scripts must return 0 to indicate success and any other exit code to indicate
+failure.
+
+
+
 Master
 ===============================================================================
 
-On a master machine, there will be a root master directory with a layout
-similar to this:
+On a master machine, there will be a master directory with a layout similar to
+this:
 
 .. code-block:: text
 
     master/
         certs/
         actors/
-            
+            prescribe
+            choreograph
+
+
+``prescribe`` script
+-------------------------------------------------------------------------------
+
+This script accepts a fact document on stdin and produces a list of desired
+resources states for the minion identified by the given fact document.
+
+
+``choreograph`` script
+-------------------------------------------------------------------------------
+
+Given a set of facts, a prescription and the current state of each resource in
+the prescription, this script produces a list of steps including:
+
+1. desired resource states
+2. one-time resource actions
 
 
 Minion
 ===============================================================================
 
-On a minion machine, there will be a root minion directory with a layout
-similar to this:
+On a minion machine, there will be a minion directory with a layout similar to
+this:
 
 .. code-block:: text
 
@@ -36,16 +90,18 @@ similar to this:
             file
             cron
             user
+            service
+
 
 Fact scripts
 -------------------------------------------------------------------------------
 
-The executable scripts in ``minion/facts`` accept no arguments or stdin.  They
+The executable scripts in ``minion/facts/`` accept no arguments or stdin.  They
 return facts about the system on stdout.
 
 When a minion is asked for the facts of the system, all the scripts in the
-``minion/facts`` directory are run and combined into a single fact document.
-For instance, the output of ``/minion/facts/foo`` might be:
+``minion/facts/`` directory are run and combined into a single fact document.
+For instance, the output of ``minion/facts/foo`` might be:
 
 .. code-block:: javascript
 
@@ -68,6 +124,8 @@ This would be combined into the single fact document by using the filename
         }
     }
 
+Adding custom facts is as simple as putting an executable file in
+``minion/facts/`` that writes a fact document to stdout.
 
 
 Resource scripts
@@ -80,10 +138,10 @@ file ``/tmp/foo`` you would do something like:
 
 .. code-block:: bash
 
-    $ echo '{"name":"/tmp/foo"}' | minion/resources/file inspect
+    $ echo '{"path":"/tmp/foo"}' | minion/resources/file inspect
     {
         "kind": "file",
-        "name": "/tmp/foo",
+        "path": "/tmp/foo",
         "exists": false
     }
 
@@ -93,44 +151,28 @@ And to make ``/tmp/foo`` conform to an expected state, you could do:
 
     $ cat | minion/resources/file conform
     {
-        "name": "/tmp/foo",
+        "path": "/tmp/foo",
         "user": "joe",
         "src": "http://www.example.com/foo.png"
     }
     ^D
 
 
-Script interface
-===============================================================================
+Some resources support one-time actions (such as restarting a service).
+These are supported by using a custom command-line argument (in place of
+``inspect`` or ``conform``).  To restart a service you might do:
 
-All scripts are expected to use the standard input/output file
-descriptors plus an optional logging control file descriptor (fd 3):
+.. code-block:: bash
 
-- STDIN (0): input comes from stdin.  Usually this will be a JSON 
-  document.
+    $ cat | minion/resources/service restart
+    {
+        "name": "sshd"
+    }
+    ^D
 
-- STDOUT (1): output is written to stdout.  Usually this will be
-  a JSON document.
 
-- STDERR (2): errors and debugging are written to stderr.  The script may 
-  write to stderr and still be considered successful.  Success is 
-  determined solely by the exit code.  Things written to stderr do NOT
-  need to be JSON documents.
-
-- LOGCTL (3): (XXX protocol to be determined).  Things written to this
-  channel are passed through to the historian.  It is expected that this 
-  channel will be used to upload log files, indicate steps in a process, 
-  label stdin/out/err for each spawned process, etc...
-  
-  A script should not depend on this file descriptor being available.  So
-  these two calls should have the same stdin, stdout, stderr and exit code:
-  
-  .. code-block:: bash
-     
-      /bin/bash some_script
-      /bin/bash some_script 3>/dev/null
-
-Scripts must return 0 to indicate success and any other exit code to indicate failure.
+To add a custom resource, put an executable file in ``minion/resources/`` that
+behaves as indicated above.
 
 
 Indices and tables
