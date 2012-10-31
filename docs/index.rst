@@ -183,7 +183,7 @@ logging/debugging information back to the historian.
 Things written to the log channel are encoded in JSON tuples wrapped in
 netstrings.  Each tuple has 3 items:
 
-1. Child process name or '' if the current process
+1. Child process name or ``null`` if the current process
 2. Key
 3. Data
 
@@ -226,13 +226,13 @@ For example:
 
 .. code-block:: python
 
-    {'line': 'this is a line\n'}
+    ('jim', 'stdout', {'line': 'this is a line\n'})
 
 Or for binary data:
 
 .. code-block:: python
 
-    {'line': 'AAH/\n', 'encoding': 'base64'}
+    ('joe', 'stderr', {'line': 'AAH/\n', 'encoding': 'base64'})
 
 
 ``spawn``
@@ -266,7 +266,7 @@ For example:
 
 .. code-block:: python
 
-    {
+    ('newchild', 'spawn', {
         'path': '/tmp/foo',
         'env': {
             'FOO': 'something',
@@ -275,7 +275,7 @@ For example:
         'args': ['cat', 'afile'],
         'user': 'joe',
         'group': 'joe',
-    }
+    })
 
 ``exitcode``
 ...............................................................................
@@ -290,7 +290,7 @@ For example:
 
 .. code-block:: python
 
-    3
+    ('newchild', 'exitcode', 3)
 
 
 Indices and tables
