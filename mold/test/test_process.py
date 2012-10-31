@@ -61,6 +61,19 @@ class Channel3ProtocolTest(TestCase):
         self.assertEqual(t.value(), 'foo bar')
 
 
+    def test_ch3(self):
+        """
+        If ch3 data is received, preppend my name to the list and send it on
+        again.
+        """
+        data = []
+        p = Channel3Protocol('joe', data.append)
+        info = ch3.fd('jim', 2, 'foo bar')
+        p.childDataReceived(3, '%d:%s,' % (len(info), info))
+        self.assertEqual(data[0], ch3.fd('joe.jim', 2, 'foo bar'))
+
+
+
 class NetstringBufferTest(TestCase):
 
 
