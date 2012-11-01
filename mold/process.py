@@ -7,7 +7,6 @@ from twisted.internet import protocol, defer
 from twisted.protocols.basic import NetstringReceiver
 
 
-from mold.log import MessageFactory
 from mold import ch3
 
 import json

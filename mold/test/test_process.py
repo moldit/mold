@@ -11,7 +11,6 @@ import os
 
 from mold.process import (Channel3Protocol, LoggingProtocol, spawnLogged)
 from mold import ch3
-from mold.log import MessageFactory
 
 
 
