@@ -3,7 +3,7 @@
 XXX
 """
 
-__all__ = ['Channel3Protocol', 'spawnChannel3']
+__all__ = ['SimpleProtocol', 'Channel3Protocol', 'spawnChannel3']
 
 from twisted.internet import protocol, defer, interfaces, reactor
 from twisted.protocols.basic import NetstringReceiver
@@ -14,6 +14,47 @@ from zope.interface import implements
 import os
 
 from mold import ch3
+
+
+
+class SimpleProtocol(protocol.ProcessProtocol):
+    """
+    I write a chunk of stdin to the process and read the stdout and stderr out.
+    
+    @param stdout: A string of all stdout encountered so far
+    @param stderr: A string of all stderr encountered so far
+    @param done: A C{Deferred} which will fire with me on success (exit code 0)
+        and an error on failure.
+    """
+    
+    
+    def __init__(self, stdin):
+        """
+        @ivar stdin: standard in to write immediately on connection.
+        """
+        self.stdin = stdin
+        self.stdout = ''
+        self.stderr = ''
+        self.done = defer.Deferred()
+
+
+    def connectionMade(self):
+        self.transport.write(self.stdin)
+        self.transport.closeStdin()
+
+
+    def childDataReceived(self, childfd, data):
+        if childfd == 1:
+            self.stdout += data
+        elif childfd == 2:
+            self.stderr += data
+
+
+    def processEnded(self, status):
+        if status.value.exitCode == 0:
+            self.done.callback(self)
+        else:
+            self.done.errback(status)
 
 
 

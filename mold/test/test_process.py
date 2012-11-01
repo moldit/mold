@@ -10,9 +10,70 @@ from mock import MagicMock, Mock
 
 import os
 
-from mold.process import (Channel3Protocol, _spawnDefaultArgs, spawnChannel3)
+from mold.process import (Channel3Protocol, _spawnDefaultArgs, spawnChannel3,
+                          SimpleProtocol)
 from mold import ch3
 
+
+
+class SimpleProtocolTest(TestCase):
+
+
+    timeout = 1
+
+
+    def test_init(self):
+        """
+        Initialize it with a chunk of stdin.
+        """
+        p = SimpleProtocol('foo')
+        t = StringTransport()            
+        t.closeStdin = Mock()
+        p.makeConnection(t)
+        self.assertEqual(t.value(), 'foo')
+        self.assertTrue(t.closeStdin.called)
+
+
+    def test_stdout_err(self):
+        """
+        You can get stdout and stderr.
+        """
+        p = SimpleProtocol('foo')
+        
+        p.childDataReceived(1, 'foo')
+        p.childDataReceived(2, 'bar')
+        self.assertEqual(p.stdout, 'foo')
+        self.assertEqual(p.stderr, 'bar')
+
+        p.childDataReceived(1, 'another foo')
+        p.childDataReceived(2, 'another bar')        
+        self.assertEqual(p.stdout, 'fooanother foo')
+        self.assertEqual(p.stderr, 'baranother bar')
+
+
+    def test_done(self):
+        """
+        When the process exits successfully, it's a callback rather than an
+        errback
+        """
+        p = SimpleProtocol('foo')
+        p.processEnded(failure.Failure(error.ProcessDone('foo')))
+        def check(res):
+            self.assertEqual(res, p)
+        return p.done.addCallback(check)
+
+
+    def test_done_error(self):
+        """
+        If the process exits with an error code, that's an error.
+        """
+        p = SimpleProtocol('foo')
+        p.processEnded(failure.Failure(error.ProcessTerminated(12, 'kill')))
+        def eb(res):
+            pass
+        def cb(res):
+            self.fail('should have been an error')
+        return p.done.addCallbacks(cb, eb)
 
 
 class Channel3ProtocolTest(TestCase):
