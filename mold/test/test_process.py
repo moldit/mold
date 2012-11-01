@@ -10,8 +10,7 @@ from mock import MagicMock, Mock
 
 import os
 
-from mold.process import (Channel3Protocol, _spawnDefaultArgs,
-                          ProcessTransportWrapper)
+from mold.process import (Channel3Protocol, _spawnDefaultArgs)
 from mold import ch3
 
 
@@ -220,6 +219,7 @@ class Channel3ProtocolTest(TestCase):
         self.assertEqual(data[1], ch3.fd('joe', 0, 'bar'))
 
 
+
 class _spawnDefaultArgsTest(TestCase):
     """
     http://twistedmatrix.com/documents/current/api/twisted.internet.interfaces.IReactorProcess.spawnProcess.html
@@ -326,85 +326,5 @@ class _spawnDefaultArgsTest(TestCase):
         r = _spawnDefaultArgs('exec', usePTY=True)
         self.assertEqual(r['usePTY'], True)
  
-
-
-class ProcessTransportWrapperTest(TestCase):
-
-
-    def test_IProcessTransport(self):
-        verifyClass(interfaces.IProcessTransport, ProcessTransportWrapper)
-        verifyObject(interfaces.IProcessTransport,
-                     ProcessTransportWrapper(None, None))
-
-
-    def test_pid(self):
-        """
-        It should behave 
-        """
-        t = MagicMock()
-        t.pid = 12
-        p = ProcessTransportWrapper(t)
-        self.assertEqual(p.pid, 12)
-        t.pid = 13
-        self.assertEqual(p.pid, 13)
-
-
-    def assertPassthru(self, name, *args, **kwargs):
-        """
-        Assert that the method was called on the original as is and that the
-        return result was returned as well
-        """
-        t = MagicMock()
-        mock = Mock(return_value='foo')
-        setattr(t, name, mock)
-        p = ProcessTransportWrapper(t)
-        r = getattr(p, name)(*args, **kwargs)
-        try:
-            mock.assert_called_once_with(*args, **kwargs)
-        except AssertionError as e:
-            raise AssertionError(str(e), name)
-        self.assertEqual(r, 'foo', "Should return through for %r" % name)
-        
-
-    def test_closeStdin(self):
-        self.assertPassthru('closeStdin')
-
-
-    def test_closeStdout(self):
-        self.assertPassthru('closeStdout')
-
-
-    def test_closeStderr(self):
-        self.assertPassthru('closeStderr')
-
-
-    def test_closeChildFD(self):
-        self.assertPassthru('closeChildFD', 1)
-
-
-    def test_loseConnection(self):
-        self.assertPassthru('loseConnection')
-
-
-    def test_signalProcess(self):
-        self.assertPassthru('signalProcess', 'signal')
-
-
-    def test_getPeer(self):
-        self.assertPassthru('getPeer')
-
-
-    def test_getHost(self):
-        self.assertPassthru('getHost')
-
-
-    def test_write(self):
-        """
-        Writes should be sent elsewhere, then written
-        """
-        t = MagicMock()
-        write = Mock()
-        p = ProcessTransportWrapper(t, write=write)
-        p.write
 
 
