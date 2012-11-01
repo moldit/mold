@@ -1,7 +1,8 @@
 from twisted.trial.unittest import TestCase
 
-from mold.signverify import (verify, sign, signMessage, verifySignature)
+from mold.signverify import (signMessage, verifySignature)
 from OpenSSL import crypto
+from OpenSSL.crypto import sign, verify
 
 
 def create_self_signed_cert():
