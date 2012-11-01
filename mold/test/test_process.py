@@ -1,13 +1,17 @@
 from twisted.trial.unittest import TestCase, SkipTest
 from twisted.test.proto_helpers import StringTransport
-from twisted.internet import reactor, defer, error
+from twisted.internet import reactor, defer, error, interfaces
 from twisted.python.filepath import FilePath
 from twisted.python import failure
 from twisted.python.runtime import platform
 
+from zope.interface.verify import verifyClass, verifyObject
+from mock import MagicMock, Mock
+
 import os
 
-from mold.process import (Channel3Protocol, _spawnDefaultArgs)
+from mold.process import (Channel3Protocol, _spawnDefaultArgs,
+                          ProcessTransportWrapper)
 from mold import ch3
 
 
@@ -46,19 +50,6 @@ class Channel3ProtocolTest(TestCase):
         p = Channel3Protocol('joe', data.append)
         p.childDataReceived(2, 'some data')
         self.assertEqual(data[0], ch3.fd('joe', 2, 'some data'))
-
-
-    def test_write(self):
-        """
-        Writing to stdin should be logged.
-        """
-        data = []
-        t = StringTransport()
-        p = Channel3Protocol('joe', data.append)
-        p.makeConnection(t)
-        p.write('foo bar')
-        self.assertEqual(data[0], ch3.fd('joe', 0, 'foo bar'))
-        self.assertEqual(t.value(), 'foo bar')
 
 
     def test_ch3(self):
@@ -109,6 +100,124 @@ class Channel3ProtocolTest(TestCase):
             self.assertEqual(r, p)
         return p.started.addCallback(check)
 
+    # IProcessTransport
+
+    def test_IProcessTransport(self):
+        """
+        The protocol itself should be useable as a transport for some other
+        protocol.
+        """
+        verifyObject(interfaces.IProcessTransport,
+                     Channel3Protocol('name', None))
+
+
+    def assertCallTransport(self, name, *args, **kwargs):
+        """
+        Assert that the method was called on the transport as is and that the
+        return result was returned as well
+        """
+        transport = MagicMock()
+        mock = Mock(return_value='foo')
+        setattr(transport, name, mock)
+        
+        proto = Channel3Protocol('name', lambda x:None)
+        proto.makeConnection(transport)
+        
+        result = getattr(proto, name)(*args, **kwargs)
+        try:
+            mock.assert_called_once_with(*args, **kwargs)
+        except AssertionError as e:
+            raise AssertionError(str(e), name)
+        self.assertEqual(result, 'foo', "Should return the result of "
+                                        "transport.%s" % name)
+
+
+    def test_pid(self):
+        """
+        Should have the same pid as the transport.
+        """
+        p = Channel3Protocol('joe', None)
+        self.assertEqual(p.pid, None)
+        t = StringTransport()
+        t.pid = 23
+        p.makeConnection(t)
+        self.assertEqual(p.pid, 23)
+
+
+    def test_closeStdin(self):
+        self.assertCallTransport('closeStdin')
+
+
+    def test_closeStdout(self):
+        self.assertCallTransport('closeStdout')
+
+
+    def test_closeStderr(self):
+        self.assertCallTransport('closeStderr')
+
+
+    def test_closeChildFD(self):
+        self.assertCallTransport('closeChildFD', 1)
+
+
+    def test_loseConnection(self):
+        self.assertCallTransport('loseConnection')
+
+
+    def test_signalProcess(self):
+        self.assertCallTransport('signalProcess', 'foo')
+
+
+    def test_getPeer(self):
+        self.assertCallTransport('getPeer')
+
+
+    def test_getHost(self):
+        self.assertCallTransport('getHost')
+
+
+    def test_write(self):
+        """
+        Writing to stdin should be logged and written
+        """
+        self.assertCallTransport('write', 'foo bar')
+        
+        data = []
+        t = StringTransport()
+        p = Channel3Protocol('joe', data.append)
+        p.makeConnection(t)
+        p.write('foo bar')
+        self.assertEqual(data[0], ch3.fd('joe', 0, 'foo bar'))
+        self.assertEqual(t.value(), 'foo bar')
+
+
+    def test_writeToChild(self):
+        """
+        Writing to some other channel should be logged and written
+        """
+        self.assertCallTransport('writeToChild', 22, 'some data')
+        
+        data = []
+        t = MagicMock()
+        p = Channel3Protocol('joe', data.append)
+        p.makeConnection(t)
+        p.writeToChild(22, "some data")
+        self.assertEqual(data[0], ch3.fd('joe', 22, 'some data'))
+
+
+    def test_writeSequence(self):
+        """
+        Should log and call through
+        """
+        self.assertCallTransport('writeSequence', ['foo', 'bar'])
+        
+        data = []
+        t = MagicMock()
+        p = Channel3Protocol('joe', data.append)
+        p.makeConnection(t)
+        p.writeSequence(['foo', 'bar'])
+        self.assertEqual(data[0], ch3.fd('joe', 0, 'foo'))
+        self.assertEqual(data[1], ch3.fd('joe', 0, 'bar'))
 
 
 class _spawnDefaultArgsTest(TestCase):
@@ -216,5 +325,86 @@ class _spawnDefaultArgsTest(TestCase):
         
         r = _spawnDefaultArgs('exec', usePTY=True)
         self.assertEqual(r['usePTY'], True)
+ 
+
+
+class ProcessTransportWrapperTest(TestCase):
+
+
+    def test_IProcessTransport(self):
+        verifyClass(interfaces.IProcessTransport, ProcessTransportWrapper)
+        verifyObject(interfaces.IProcessTransport,
+                     ProcessTransportWrapper(None, None))
+
+
+    def test_pid(self):
+        """
+        It should behave 
+        """
+        t = MagicMock()
+        t.pid = 12
+        p = ProcessTransportWrapper(t)
+        self.assertEqual(p.pid, 12)
+        t.pid = 13
+        self.assertEqual(p.pid, 13)
+
+
+    def assertPassthru(self, name, *args, **kwargs):
+        """
+        Assert that the method was called on the original as is and that the
+        return result was returned as well
+        """
+        t = MagicMock()
+        mock = Mock(return_value='foo')
+        setattr(t, name, mock)
+        p = ProcessTransportWrapper(t)
+        r = getattr(p, name)(*args, **kwargs)
+        try:
+            mock.assert_called_once_with(*args, **kwargs)
+        except AssertionError as e:
+            raise AssertionError(str(e), name)
+        self.assertEqual(r, 'foo', "Should return through for %r" % name)
+        
+
+    def test_closeStdin(self):
+        self.assertPassthru('closeStdin')
+
+
+    def test_closeStdout(self):
+        self.assertPassthru('closeStdout')
+
+
+    def test_closeStderr(self):
+        self.assertPassthru('closeStderr')
+
+
+    def test_closeChildFD(self):
+        self.assertPassthru('closeChildFD', 1)
+
+
+    def test_loseConnection(self):
+        self.assertPassthru('loseConnection')
+
+
+    def test_signalProcess(self):
+        self.assertPassthru('signalProcess', 'signal')
+
+
+    def test_getPeer(self):
+        self.assertPassthru('getPeer')
+
+
+    def test_getHost(self):
+        self.assertPassthru('getHost')
+
+
+    def test_write(self):
+        """
+        Writes should be sent elsewhere, then written
+        """
+        t = MagicMock()
+        write = Mock()
+        p = ProcessTransportWrapper(t, write=write)
+        p.write
 
 

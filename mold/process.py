@@ -3,9 +3,11 @@
 XXX
 """
 
-from twisted.internet import protocol, defer
+from twisted.internet import protocol, defer, interfaces
 from twisted.protocols.basic import NetstringReceiver
 from twisted.python.runtime import platform
+
+from zope.interface import implements
 
 import os
 
@@ -21,6 +23,8 @@ class Channel3Protocol(protocol.ProcessProtocol):
         finished.
     @ivar started: A C{Deferred} which fires on my L{connectionMade}.
     """
+    
+    implements(interfaces.IProcessTransport)
     
     
     def __init__(self, name, channel3_receiver):
@@ -52,14 +56,6 @@ class Channel3Protocol(protocol.ProcessProtocol):
         self._ch3_receiver(ch3.Message(name, key, val))
 
 
-    def write(self, data):
-        """
-        Write to stdin
-        """
-        self._ch3_receiver(ch3.fd(self.name, 0, data))
-        self.transport.write(data)
-
-
     def processEnded(self, status):
         """
         XXX
@@ -68,6 +64,65 @@ class Channel3Protocol(protocol.ProcessProtocol):
                                     status.value.exitCode,
                                     status.value.signal))
         self.done.callback(status)
+
+
+    # IProcessTransport
+    
+    @property
+    def pid(self):
+        if self.transport:
+            return self.transport.pid
+
+
+    def closeStdin(self):
+        return self.transport.closeStdin()
+
+
+    def closeStdout(self):
+        return self.transport.closeStdout()
+
+
+    def closeStderr(self):
+        return self.transport.closeStderr()
+
+
+    def closeChildFD(self, descriptor):
+        return self.transport.closeChildFD(descriptor)
+
+
+    def loseConnection(self):
+        return self.transport.loseConnection()
+
+
+    def signalProcess(self, signal):
+        return self.transport.signalProcess(signal)
+
+
+    def getPeer(self):
+        return self.transport.getPeer()
+
+
+    def getHost(self):
+        return self.transport.getHost()
+
+
+    def write(self, data):
+        """
+        Write to stdin
+        """
+        self._ch3_receiver(ch3.fd(self.name, 0, data))
+        return self.transport.write(data)
+
+
+    def writeToChild(self, childFD, data):
+        self._ch3_receiver(ch3.fd(self.name, childFD, data))
+        return self.transport.writeToChild(childFD, data)
+
+
+    def writeSequence(self, seq):
+        for x in seq:
+            self._ch3_receiver(ch3.fd(self.name, 0, x))
+        return self.transport.writeSequence(seq)
 
 
 
@@ -93,6 +148,5 @@ def _spawnDefaultArgs(executable, args=(), env={}, path=None, uid=None,
         'gid': gid,
         'usePTY': usePTY,
     }
-
 
 
