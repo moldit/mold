@@ -42,7 +42,7 @@ class SignVerifyTest(TestCase):
 
     def test_sign(self):
         """
-        calls sign and returns what it ought.
+        signMessage behaves like OpenSSL.crypto.sign 
         """
         pkey = self.pkey
         a = sign(pkey, "message", "sha1")
@@ -53,19 +53,21 @@ class SignVerifyTest(TestCase):
 
     def test_verify(self):
         """
-        calls verify and returns the rigth thing.
+        verifySignature returns True when 
+        OpenSSL.crypto.verify returns None, and False
+        otherwise.
         """
         pkey, cert = self.pkey, self.cert
         data = "message"
         signature = sign(pkey, data, "sha1")
         self.assertEquals(verify(cert, signature, data, "sha1"), None)
-        self.assertEquals(verifySignature(signature, data, cert), True)
+        self.assertTrue(verifySignature(signature, data, cert))
 
 
     def test_verify_badcert(self):
         """
         if the cert doesn't belong with the signature
-        verify returns False
+        verifySignature returns False
         """
         cert = self.cert
         _, cert2 = create_self_signed_cert()
