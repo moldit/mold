@@ -5,6 +5,7 @@ XXX
 
 from twisted.internet import protocol, defer
 from twisted.protocols.basic import NetstringReceiver
+from twisted.python.runtime import platform
 
 
 from mold import ch3
@@ -22,6 +23,7 @@ class Channel3Protocol(protocol.ProcessProtocol):
     
     @ivar done: A C{Deferred} which will fire when the process has 
         finished.
+    @ivar started: A C{Deferred} which fires on my L{connectionMade}.
     """
     
     
@@ -71,6 +73,29 @@ class Channel3Protocol(protocol.ProcessProtocol):
                                     status.value.signal))
         self.done.callback(status)
 
+
+def _spawnDefaultArgs(executable, args=(), env={}, path=None, uid=None,
+                      gid=None, usePTY=0):
+    """
+    I get the defaults for some keyword arguments for a reactor.spawnProcess
+    call.
+    
+    @return: A dictionary with the values that will be used when spawning.
+    """
+    if env is None:
+        env = os.environ
+    path = path or os.curdir
+    uid = uid or os.geteuid()
+    gid = gid or os.getegid()
+    return {
+        'executable': executable,
+        'args': args,
+        'env': env,
+        'path': path,
+        'uid': uid,
+        'gid': gid,
+        'usePTY': usePTY,
+    }
 
 
 def spawnLogged(reactor, proto, executable, args=(), env={}, path=None,

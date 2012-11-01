@@ -1,15 +1,16 @@
-from twisted.trial.unittest import TestCase
+from twisted.trial.unittest import TestCase, SkipTest
 from twisted.test.proto_helpers import StringTransport
 from twisted.internet import reactor, defer, error
 from twisted.python.filepath import FilePath
 from twisted.python import failure
+from twisted.python.runtime import platform
 
 
 import json
 import os
 
 
-from mold.process import (Channel3Protocol, LoggingProtocol, spawnLogged)
+from mold.process import (Channel3Protocol, spawnLogged, _spawnDefaultArgs)
 from mold import ch3
 
 
@@ -160,6 +161,114 @@ class spawnLoggedTest(TestCase):
                                        "\n%s\n\n%s" % (msg, '\n'.join(called)))
         
         return proto.done.addCallback(check)
+
+
+
+class _spawnDefaultArgsTest(TestCase):
+    """
+    http://twistedmatrix.com/documents/current/api/twisted.internet.interfaces.IReactorProcess.spawnProcess.html
+    """
+
+    def test_executable(self):
+        r = _spawnDefaultArgs('exec')
+        self.assertEqual(r['executable'], 'exec')
+
+
+    def test_args(self):
+        """
+        default is ()
+        """
+        r = _spawnDefaultArgs('exec')
+        self.assertEqual(r['args'], ())
+        
+        r = _spawnDefaultArgs('exec', args=['foo', 'bar'])
+        self.assertEqual(r['args'], ['foo', 'bar'])
+
+
+    def test_env_POSIX(self):
+        """
+        default on POSIX is {} unless it's None, then it's os.environ.
+        """
+        if platform.isWindows():
+            raise SkipTest('POSIX-only test')
+
+        r = _spawnDefaultArgs('exec')
+        self.assertEqual(r['env'], {})
+        
+        r = _spawnDefaultArgs('exec', env=None)
+        self.assertEqual(r['env'], os.environ)
+
+        r = _spawnDefaultArgs('exec', env={'foo': 'bar'})
+        self.assertEqual(r['env'], {'foo': 'bar'})
+
+
+    def test_env_Windows(self):
+        """
+        default on windows is os.environ updated with whatever
+        """
+        if not platform.isWindows():
+            raise SkipTest('Windows-only test')
+        
+        r = _spawnDefaultArgs('exec')
+        self.assertEqual(r['env'], os.environ)
+        
+        r = _spawnDefaultArgs('exec', env=None)
+        self.assertEqual(r['env'], os.environ)
+        
+        r = _spawnDefaultArgs('exec', env={'foo': 'bar'})
+        e = os.environ.copy()
+        e.update({'foo': 'bar'})
+        self.assertEqual(r['env'], e)
+
+
+    def test_path(self):
+        """
+        Should be current dir
+        """
+        r = _spawnDefaultArgs('exec')
+        self.assertEqual(r['path'], os.curdir)
+        
+        r = _spawnDefaultArgs('exec', path='foo')
+        self.assertEqual(r['path'], 'foo')
+
+
+    def test_uid(self):
+        """
+        Should be the current user by default
+        """
+        if platform.isWindows():
+            raise SkipTest('Windows-only test')
+
+        r = _spawnDefaultArgs('exec')
+        self.assertEqual(r['uid'], os.geteuid())
+        
+        r = _spawnDefaultArgs('exec', uid='foo')
+        self.assertEqual(r['uid'], 'foo')
+
+
+    def test_gid(self):
+        """
+        Should be the current user by default
+        """
+        if platform.isWindows():
+            raise SkipTest('Windows-only test')
+
+        r = _spawnDefaultArgs('exec')
+        self.assertEqual(r['gid'], os.getegid())
+        
+        r = _spawnDefaultArgs('exec', gid='foo')
+        self.assertEqual(r['gid'], 'foo')
+
+
+    def test_usePTY(self):
+        """
+        Default 0
+        """
+        r = _spawnDefaultArgs('exec')
+        self.assertEqual(r['usePTY'], 0)
+        
+        r = _spawnDefaultArgs('exec', usePTY=True)
+        self.assertEqual(r['usePTY'], True)
 
 
 
