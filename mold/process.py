@@ -3,7 +3,7 @@
 XXX
 """
 
-from twisted.internet import protocol, defer, interfaces
+from twisted.internet import protocol, defer, interfaces, reactor
 from twisted.protocols.basic import NetstringReceiver
 from twisted.python.runtime import platform
 
@@ -186,5 +186,38 @@ def _spawnDefaultArgs(executable, args=(), env={}, path=None, uid=None,
         'gid': gid,
         'usePTY': usePTY,
     }
+
+
+
+def spawnChannel3(name, ch3_receiver, protocol, executable, args=(), env={},
+                  path=None, uid=None, gid=None, usePTY=0):
+    """
+    Spawn a process with Channel3 logging enabled.
+    
+    @param name: Name of the process as will appear in logs.
+    @param ch3_receiver: A function of one argument that will accept
+        L{Messages<ch3.Message>}.
+    
+    @param protocol: C{ProcessProtocol} instance that will handle stdin/out/err.
+    
+    @param **kwargs: See C{reactor.spawnProcess}.
+    """
+    p = Channel3Protocol(name, ch3_receiver, protocol)
+    
+    # log it
+    log_kwargs = _spawnDefaultArgs(executable,args,env,path,uid,gid,usePTY)
+    ch3_receiver(ch3.spawnProcess(name, **log_kwargs))
+    
+    # spawn it
+    childFDs = {
+        0: 'w',
+        1: 'r',
+        2: 'r',
+        3: 'r',
+    }
+    reactor.spawnProcess(p, executable, args, env, path, uid, gid, usePTY,
+                         childFDs)
+    return p
+
 
 
