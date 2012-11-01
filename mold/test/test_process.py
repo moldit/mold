@@ -1,8 +1,8 @@
 from twisted.trial.unittest import TestCase, SkipTest
 from twisted.test.proto_helpers import StringTransport
-from twisted.internet import reactor, defer, error, interfaces
+from twisted.internet import reactor, defer, error, interfaces, protocol
 from twisted.python.filepath import FilePath
-from twisted.python import failure
+from twisted.python import failure, log
 from twisted.python.runtime import platform
 
 from zope.interface.verify import verifyClass, verifyObject
@@ -10,7 +10,7 @@ from mock import MagicMock, Mock
 
 import os
 
-from mold.process import (Channel3Protocol, _spawnDefaultArgs)
+from mold.process import (Channel3Protocol, _spawnDefaultArgs, spawnChannel3)
 from mold import ch3
 
 
@@ -378,6 +378,30 @@ class _spawnDefaultArgsTest(TestCase):
         
         r = _spawnDefaultArgs('exec', usePTY=True)
         self.assertEqual(r['usePTY'], True)
- 
+
+
+
+class spawnChannel3Test(TestCase):
+
+
+    timeout = 2
+
+
+    def test_basic(self):
+        """
+        You can spawn a process
+        """
+        proto = MagicMock()
+        history = []
+        p = spawnChannel3('jim', history.append, proto, '/bin/ls', ['ls', '-al'])
+        kwargs = _spawnDefaultArgs('/bin/ls', ['ls', '-al'])
+        self.assertEqual(history[0], ch3.spawnProcess('jim', **kwargs),
+                         "Should indicate the arguments used to spawn")
+        def check(status):
+            self.assertEqual(status.value.exitCode, 0)
+            for x in history:
+                log.msg(x)
+        return p.done.addErrback(check)
+        
 
 
