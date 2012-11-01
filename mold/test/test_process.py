@@ -70,7 +70,7 @@ class Channel3ProtocolTest(TestCase):
         """
         data = []
         p = Channel3Protocol('joe', data.append)
-        info = ch3.fd('jim', 2, 'foo bar')
+        info = ch3.encode(ch3.fd('jim', 2, 'foo bar'))
         p.childDataReceived(3, '%d:%s,' % (len(info), info))
         self.assertEqual(data[0], ch3.fd('joe.jim', 2, 'foo bar'))
 

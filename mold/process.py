@@ -51,7 +51,7 @@ class Channel3Protocol(protocol.ProcessProtocol):
     def _ch3DataReceived(self, data):
         name, key, val = ch3.decode(data)
         name = '.'.join([self.name, name])
-        self._ch3_receiver(ch3.encode((name, key, val)))
+        self._ch3_receiver(ch3.Message(name, key, val))
 
 
     def write(self, data):
