@@ -13,8 +13,10 @@ setup(
     ],
     install_requires=[
         'Twisted>=10.2.0',
+        'pyOpenSSL',
         'jsonschema',
         'Jinja2',
+        'mock',
     ],
     scripts=[
         'bin/mold',
