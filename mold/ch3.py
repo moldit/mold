@@ -2,9 +2,14 @@
 import os
 import json
 
+from collections import namedtuple
+
 
 decode = json.loads
 encode = json.dumps
+
+
+Message = namedtuple('Message', ['name', 'key', 'data'])
 
 undef = object()
 
@@ -13,13 +18,13 @@ def fd(name, fdnumber, data):
     """
     XXX
     """
+    r = {'line': data}
     try:
-        return encode((name, fdnumber, {'line': data}))
+        encode(r)
     except UnicodeDecodeError as e:
-        return encode((name, fdnumber, {
-            'line': data.encode('base64'),
-            'encoding': 'base64',
-        }))
+        r['line'] = data.encode('base64')
+        r['encoding'] = 'base64'    
+    return Message(name, fdnumber, r)
 
 
 
@@ -33,21 +38,23 @@ def spawnProcess(name, executable, args=None, env=undef, path=None, uid=None,
     elif env is None:
         env = dict(os.environ)
     path = path or os.curdir
-    return encode((name, 'spawn', {
+    return Message(name, 'spawn', {
         'executable': executable,
         'args': args,
         'env': env,
         'path': path,
         'uid': uid,
         'gid': gid,
-    }))
+    })
 
 
 
 def exit(name, code, signal):
     """
     """
-    return encode((name, 'exitcode', {
+    return Message(name, 'exit', {
         'code': code,
         'signal': signal,
-    }))
+    })
+
+
