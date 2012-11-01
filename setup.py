@@ -16,7 +16,6 @@ setup(
         'pyOpenSSL',
         'jsonschema',
         'Jinja2',
-        'mock',
     ],
     scripts=[
         'bin/mold',

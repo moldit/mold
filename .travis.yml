@@ -8,6 +8,6 @@ python:
 
 install:
   - python setup.py install
-  - pip install Twisted jsonschema Jinja2 --use-mirrors
+  - pip install Twisted jsonschema Jinja2 pyOpenSSL mock --use-mirrors
 
 script: trial mold
