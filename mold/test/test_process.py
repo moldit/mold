@@ -24,11 +24,13 @@ class Channel3ProtocolTest(TestCase):
     def test_init(self):
         """
         Should take a function that will be called with each piece of channel3
-        information
+        information and the protocol that will actually handle the data
         """
         data = []
-        p = Channel3Protocol('name', data.append)
+        other_proto = object()
+        p = Channel3Protocol('name', data.append, other_proto)
         self.assertEqual(p.name, 'name')
+        self.assertEqual(p.sub_proto, other_proto)
 
 
     def test_stdout(self):
@@ -36,9 +38,11 @@ class Channel3ProtocolTest(TestCase):
         When stdout is received, it should be sent to the channel3 receiver
         """
         data = []
-        p = Channel3Protocol('joe', data.append)
+        proto = MagicMock()
+        p = Channel3Protocol('joe', data.append, proto)
         p.childDataReceived(1, 'some data')
         self.assertEqual(data[0], ch3.fd('joe', 1, 'some data'))
+        proto.childDataReceived.assert_called_with(1, 'some data')
 
 
     def test_stderr(self):
@@ -46,9 +50,11 @@ class Channel3ProtocolTest(TestCase):
         When stderr is received, it should be sent to the channel3 receiver.
         """
         data = []
-        p = Channel3Protocol('joe', data.append)
+        proto = MagicMock()
+        p = Channel3Protocol('joe', data.append, proto)
         p.childDataReceived(2, 'some data')
         self.assertEqual(data[0], ch3.fd('joe', 2, 'some data'))
+        proto.childDataReceived.assert_called_with(2, 'some data')
 
 
     def test_ch3(self):
@@ -57,10 +63,12 @@ class Channel3ProtocolTest(TestCase):
         again.
         """
         data = []
-        p = Channel3Protocol('joe', data.append)
+        proto = MagicMock()
+        p = Channel3Protocol('joe', data.append, proto)
         info = ch3.encode(ch3.fd('jim', 2, 'foo bar'))
         p.childDataReceived(3, '%d:%s,' % (len(info), info))
         self.assertEqual(data[0], ch3.fd('joe.jim', 2, 'foo bar'))
+        proto.childDataReceived.assert_called_with(3, '%d:%s,' % (len(info), info))
 
 
     def test_processEnded(self):
@@ -68,11 +76,14 @@ class Channel3ProtocolTest(TestCase):
         When the process ends, record the exit information
         """
         data = []
-        p = Channel3Protocol('joe', data.append)
+        proto = MagicMock()
+        p = Channel3Protocol('joe', data.append, proto)
         self.assertFalse(p.done.called, "Should not have finished yet") 
         
         res = failure.Failure(error.ProcessDone('foo'))
         p.processEnded(res)
+        proto.processEnded.assert_called_with(res)
+        
         self.assertEqual(data[0], ch3.exit('joe', 0, None))
         self.assertEqual(p.done.result, res)
         return p.done.addErrback(lambda x:None)
@@ -82,22 +93,64 @@ class Channel3ProtocolTest(TestCase):
         """
         If a process exits with a signal
         """
-        data = []
-        p = Channel3Protocol('joe', data.append)
+        data = []        
+        p = Channel3Protocol('joe', data.append, MagicMock())
         p.processEnded(failure.Failure(error.ProcessTerminated(12, 'kill')))
         self.assertEqual(data[0], ch3.exit('joe', 12, 'kill'))
         return p.done.addErrback(lambda x:None)
 
 
+    def test_processExited(self):
+        """
+        Should call through to sub_proto
+        """
+        proto = MagicMock()
+        p = Channel3Protocol('joe', None, proto)
+        p.processExited('whatever')
+        proto.processExited.assert_called_with('whatever')
+
+
     def test_connectionMade(self):
         """
-        Should let you know when the connection is made
+        Should let you know when the connection is made and inform the sub_proto
         """
-        p = Channel3Protocol('joe', None)
+        p = Channel3Protocol('joe', None, MagicMock())
         p.connectionMade()
+        p.sub_proto.makeConnection.assert_called_with(p)
         def check(r):
             self.assertEqual(r, p)
         return p.started.addCallback(check)
+
+
+    def test_inConnectionLost(self):
+        """
+        Should pass through to sub_proto
+        """
+        proto = MagicMock()
+        p = Channel3Protocol('joe', None, proto)
+        p.inConnectionLost()
+        proto.inConnectionLost.assert_called_with()
+
+
+    def test_outConnectionLost(self):
+        """
+        Should pass through to sub_proto
+        """
+        proto = MagicMock()
+        p = Channel3Protocol('joe', None, proto)
+        p.outConnectionLost()
+        proto.outConnectionLost.assert_called_with()
+
+
+    def test_errConnectionLost(self):
+        """
+        Should pass through to sub_proto
+        """
+        proto = MagicMock()
+        p = Channel3Protocol('joe', None, proto)
+        p.errConnectionLost()
+        proto.errConnectionLost.assert_called_with()
+
 
     # IProcessTransport
 
@@ -107,7 +160,7 @@ class Channel3ProtocolTest(TestCase):
         protocol.
         """
         verifyObject(interfaces.IProcessTransport,
-                     Channel3Protocol('name', None))
+                     Channel3Protocol('name', None, None))
 
 
     def assertCallTransport(self, name, *args, **kwargs):
@@ -119,7 +172,7 @@ class Channel3ProtocolTest(TestCase):
         mock = Mock(return_value='foo')
         setattr(transport, name, mock)
         
-        proto = Channel3Protocol('name', lambda x:None)
+        proto = Channel3Protocol('name', lambda x:None, MagicMock())
         proto.makeConnection(transport)
         
         result = getattr(proto, name)(*args, **kwargs)
@@ -135,7 +188,7 @@ class Channel3ProtocolTest(TestCase):
         """
         Should have the same pid as the transport.
         """
-        p = Channel3Protocol('joe', None)
+        p = Channel3Protocol('joe', None, MagicMock())
         self.assertEqual(p.pid, None)
         t = StringTransport()
         t.pid = 23
@@ -183,7 +236,7 @@ class Channel3ProtocolTest(TestCase):
         
         data = []
         t = StringTransport()
-        p = Channel3Protocol('joe', data.append)
+        p = Channel3Protocol('joe', data.append, MagicMock())
         p.makeConnection(t)
         p.write('foo bar')
         self.assertEqual(data[0], ch3.fd('joe', 0, 'foo bar'))
@@ -198,7 +251,7 @@ class Channel3ProtocolTest(TestCase):
         
         data = []
         t = MagicMock()
-        p = Channel3Protocol('joe', data.append)
+        p = Channel3Protocol('joe', data.append, MagicMock())
         p.makeConnection(t)
         p.writeToChild(22, "some data")
         self.assertEqual(data[0], ch3.fd('joe', 22, 'some data'))
@@ -212,7 +265,7 @@ class Channel3ProtocolTest(TestCase):
         
         data = []
         t = MagicMock()
-        p = Channel3Protocol('joe', data.append)
+        p = Channel3Protocol('joe', data.append, MagicMock())
         p.makeConnection(t)
         p.writeSequence(['foo', 'bar'])
         self.assertEqual(data[0], ch3.fd('joe', 0, 'foo'))
