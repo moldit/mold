@@ -7,23 +7,24 @@ Docs: http://mold.rtfd.org/
 
 It really grows on you.
 
+
+# What mold is #
+
 ``mold`` is yet another configuration management tool.
 
 
 Mold has 3 goals:
 
-1. use standards
+1. use standards (like stdin, stdout, stderr and JSON)
 
 2. allow extensions to be written in the language best suited to the problem
 
-3. stay out of the way -- provide *all* logging information.
+3. stay out of the way (e.g. provide all raw logging information)
 
 
 # Quickstart #
 
-## Install ##
-
-The virtual environment isn't necessary, but is nice:
+Install it (the virtual environment isn't necessary, but is nice):
 
     virtualenv moldtest
     source moldtest/bin/activate
@@ -32,9 +33,13 @@ The virtual environment isn't necessary, but is nice:
     cd mold.git
     python setup.py install
 
-## Set up directory ##
+Create a minion:
 
-XXX
+    mold create-minion /tmp/minion
+
+Inspect the state of a file:
+
+    echo '{"name": "/tmp/minion"}' | /tmp/minion/resources/file inspect
 
 
 # Running the tests #
