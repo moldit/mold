@@ -21,6 +21,28 @@ class ModuleTest(TestCase):
 class DirectoryTest(TestCase):
 
 
+    def test_makeChildrenExecutable(self):
+        """
+        You can make all the children in a directory executable
+        """
+        t = FilePath(self.mktemp())
+        t.makedirs()
+
+        def _isexecDir(val=True):
+            for f in t.child('resources').children():
+                perms = f.getPermissions()
+                for perm in [perms.user, perms.group, perms.other]:
+                    print perm
+                    self.assertEqual(perm.execute, val)
+
+        d = Directory(t.path)
+        d.create('minion')
+        print t.children
+        _isexecDir(False)
+        d.makeExecutable()
+        _isexecDir()
+        
+
     def test_create(self):
         """
         You can create a directory from a template
