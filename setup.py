@@ -8,6 +8,7 @@ setup(
     version='0.1',
     packages=[
         'mold', 'mold.test',
+        'mold.minion',
         'mold.script', 'mold.script.test',
         'twisted.plugins',
     ],
