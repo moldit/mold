@@ -41,6 +41,10 @@ Inspect the state of a file:
 
     echo '{"path": "/tmp/minion"}' | /tmp/minion/resources/file inspect
 
+And see the state of the resource:
+
+    {"kind": "file", "group": "wheel", "ctime": 1351889197, "exists": true, "perms": "0557", "filetype": "dir", "mtime": 1351889197, "owner": "moldit", "path": "/tmp/minion", "atime": 1351896286}
+
 
 # Running the tests #
 
