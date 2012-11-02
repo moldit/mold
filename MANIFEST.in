@@ -1,4 +1,5 @@
 include README.md
 include Makefile
-recursive-include mold/minion/templates *
+recursive-include mold/templates *
 include twisted/plugins/*.py
+recursive-include functionaltests *

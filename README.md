@@ -17,7 +17,7 @@ Mold has 3 goals:
 
 1. use standards (like stdin, stdout, stderr and JSON)
 
-2. allow extensions to be written in the language best suited to the problem
+2. allow functions to be written in the language best suited to the problem
 
 3. stay out of the way (e.g. provide all raw logging information)
 
@@ -39,7 +39,7 @@ Create a minion:
 
 Inspect the state of a file:
 
-    echo '{"name": "/tmp/minion"}' | /tmp/minion/resources/file inspect
+    echo '{"path": "/tmp/minion"}' | /tmp/minion/resources/file inspect
 
 
 # Running the tests #

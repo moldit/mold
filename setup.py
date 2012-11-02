@@ -1,5 +1,12 @@
 from distutils.core import setup
 
+# find template
+import os
+template_files = []
+for root, dirs, files in os.walk('mold/templates'):
+    template_files.extend((os.path.join(root, x)[len('mold/'):] for x in files))
+
+
 setup(
     url='https://github.com/iffy/mold',
     author='Matt Haggard',
@@ -11,6 +18,9 @@ setup(
         'mold.script', 'mold.script.test',
         'twisted.plugins',
     ],
+    package_data={
+        'mold': template_files,
+    },
     install_requires=[
         'Twisted>=10.2.0',
         'pyOpenSSL',

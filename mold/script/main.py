@@ -36,6 +36,6 @@ def main():
 
     so = options.subOptions
     if options.subCommand == 'create-minion':
-        from mold.minion.install import Directory
+        from mold.install import Directory
         d = Directory(so['path'])
-        d.install()
+        d.create('minion')
