@@ -6,16 +6,39 @@ from twisted.python import usage
 from twisted.python.filepath import FilePath
 import sys
 import json
+import pwd, grp, os
+
+
+def permsString(perms):
+    n = '0'
+    for i,thing in enumerate([perms.other, perms.group, perms.user]):
+        x = 0
+        if thing.read:
+            x = 1
+        if thing.write:
+            x |= 2
+        if thing.execute:
+            x |= 4
+        n += str(x)
+    return n
+
 
 
 def inspect(doc):
     data = json.loads(doc)
     path = FilePath(data['path'])
-    return json.dumps({
-        'kind': 'file',
-        'path': path.path,
-        'exists': path.exists(),
-    })
+    ret = {'kind': 'file', 'path': path.path, 'exists': path.exists()}
+    if not ret['exists']:
+        return ret
+            
+    ret['filetype'] = 'dir'
+    ret['owner'] = pwd.getpwuid(path.getUserID()).pw_name
+    ret['group'] = grp.getgrgid(path.getGroupID()).gr_name
+    ret['perms'] = permsString(path.getPermissions())
+    ret['ctime'] = int(path.statinfo.st_ctime)
+    ret['mtime'] = int(path.statinfo.st_mtime)
+    ret['atime'] = int(path.statinfo.st_atime)
+    return ret
 
 
 
@@ -34,22 +57,6 @@ def main(args=sys.argv[1:], stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stder
 
     # XXX all this stdin/out/err faking is just for testing.  Maybe there's
     # a better way to do this.
-    real_stdin = sys.stdin
-    real_stdout = sys.stdout
-    real_stderr = sys.stderr
-    def restore():
-        sys.stdin = real_stdin
-        sys.stdout = real_stdout
-        sys.stderr = real_stderr
-        
-    try:
-        sys.stdin = stdin
-        sys.stdout = stdout
-        sys.stderr = stderr
-        if options.subCommand == 'inspect':
-            stdout.write(inspect(stdin.read()))
-    except:
-        restore()
-        raise
-    else:
-        restore()
+
+    if options.subCommand == 'inspect':
+        stdout.write(json.dumps(inspect(stdin.read())))
