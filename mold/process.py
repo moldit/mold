@@ -3,7 +3,8 @@
 XXX
 """
 
-__all__ = ['SimpleProtocol', 'Channel3Protocol', 'spawnChannel3']
+__all__ = ['SimpleProtocol', 'Channel3Protocol', 'spawnChannel3',
+           'ScriptRunner']
 
 from twisted.internet import protocol, defer, interfaces, reactor
 from twisted.protocols.basic import NetstringReceiver
