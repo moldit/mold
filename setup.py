@@ -15,6 +15,7 @@ setup(
     version='0.1',
     packages=[
         'mold', 'mold.test',
+        'mold.resources',
         'mold.script', 'mold.script.test',
         'twisted.plugins',
     ],
