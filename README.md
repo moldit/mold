@@ -29,7 +29,7 @@ Install it (the virtual environment isn't necessary, but is nice):
     virtualenv moldtest
     source moldtest/bin/activate
     pip install --upgrade Twisted Jinja2
-    git clone https://github.com/iffy/mold.git mold.git
+    git clone https://github.com/moldit/mold.git mold.git
     cd mold.git
     python setup.py install
 

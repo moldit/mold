@@ -214,7 +214,7 @@ netstrings.  Each tuple has 3 items:
 
 For instance, if I were indicating to my parent process that I
 received stdout from my child process (named ``jim``), I would write this to
-the ``log`` fd:
+the ``channel3`` fd:
 
     ::
         
