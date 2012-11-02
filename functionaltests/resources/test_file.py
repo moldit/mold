@@ -8,6 +8,8 @@ import pwd
 import grp
 import os
 
+from hashlib import sha1
+
 from StringIO import StringIO
 
 
@@ -73,3 +75,36 @@ class file_inspect_Test(TestCase):
         self.assertEqual(type(data['mtime']), int)
         self.assertEqual(data['atime'], int(root.statinfo.st_atime))
         self.assertEqual(type(data['atime']), int)
+
+
+    def test_file(self):
+        """
+        An existing file has these attributes
+        """
+        root = FilePath(self.mktemp())
+        root.setContent('the content')
+        root.chmod(0777)
+        
+        stdout, stderr, code = self.runScript(['inspect'], json.dumps({
+            'kind': 'file',
+            'path': root.path,
+        }))
+        data = json.loads(stdout)
+        
+        self.assertEqual(data['kind'], 'file')
+        self.assertEqual(data['path'], root.path)
+        self.assertEqual(data['exists'], True)
+        self.assertEqual(data['filetype'], 'file')
+        self.assertEqual(data['owner'], pwd.getpwuid(os.geteuid()).pw_name)
+        self.assertEqual(data['group'], grp.getgrgid(os.getegid()).gr_name)
+        self.assertEqual(data['perms'], '0777')
+        root.restat()
+        self.assertEqual(data['ctime'], int(root.statinfo.st_ctime))
+        self.assertEqual(type(data['ctime']), int)
+        self.assertEqual(data['mtime'], int(root.statinfo.st_mtime))
+        self.assertEqual(type(data['mtime']), int)
+        self.assertEqual(data['atime'], int(root.statinfo.st_atime))
+        self.assertEqual(type(data['atime']), int)
+        
+        self.assertEqual(data['sha1'], sha1('the content').hexdigest())
+        self.assertEqual(data['size'], len('the content'))

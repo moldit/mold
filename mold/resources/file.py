@@ -7,6 +7,7 @@ from twisted.python.filepath import FilePath
 import sys
 import json
 import pwd, grp, os
+from hashlib import sha1
 
 
 def permsString(perms):
@@ -30,8 +31,21 @@ def inspect(doc):
     ret = {'kind': 'file', 'path': path.path, 'exists': path.exists()}
     if not ret['exists']:
         return ret
-            
-    ret['filetype'] = 'dir'
+    
+    if path.isdir():
+        ret['filetype'] = 'dir'
+    elif path.isfile():
+        ret['filetype'] = 'file'
+        ret['size'] = path.statinfo.st_size
+        h = sha1()
+        fh = open(path.path, 'r')
+        while True:
+            data = fh.read(4096)
+            if not data:
+                break
+            h.update(data)
+        ret['sha1'] = h.hexdigest()
+
     ret['owner'] = pwd.getpwuid(path.getUserID()).pw_name
     ret['group'] = grp.getgrgid(path.getGroupID()).gr_name
     ret['perms'] = permsString(path.getPermissions())
