@@ -1,4 +1,8 @@
 
+
+__all__ = ['Message', 'encode', 'decode', 'fd', 'spawnProcess', 'exit']
+
+
 import os
 import json
 
@@ -11,7 +15,6 @@ encode = json.dumps
 
 Message = namedtuple('Message', ['name', 'key', 'data'])
 
-undef = object()
 
 
 def fd(name, fdnumber, data):
@@ -28,16 +31,10 @@ def fd(name, fdnumber, data):
 
 
 
-def spawnProcess(name, executable, args=None, env=undef, path=None, uid=None, 
-                 gid=None):
+def spawnProcess(name, executable, args, env, path, uid, gid, usePTY):
     """
     XXX
     """
-    if env is undef:
-        env = {}
-    elif env is None:
-        env = dict(os.environ)
-    path = path or os.curdir
     return Message(name, 'spawn', {
         'executable': executable,
         'args': args,
@@ -45,6 +42,7 @@ def spawnProcess(name, executable, args=None, env=undef, path=None, uid=None,
         'path': path,
         'uid': uid,
         'gid': gid,
+        'usePTY': usePTY,
     })
 
 

@@ -44,12 +44,16 @@ failure.
 Master
 ===============================================================================
 
+The master's goal is to direct the configuration of systems by communicating
+with minions.
+
 On a master machine, there will be a master directory with a layout similar to
 this:
 
 .. code-block:: text
 
     master/
+        logs/
         certs/
         actors/
             prescribe
@@ -76,12 +80,33 @@ the prescription, this script produces a list of steps including:
 Minion
 ===============================================================================
 
+The minion's goal is to configure the system on which he lives.
+
+
+Ways of configuring a machine through the minion
+-------------------------------------------------------------------------------
+
+You can send messages over the network:
+
+.. image:: minion-network-flow.svg
+
+You can execute commands directly from the shell (using the same code path as
+the network uses)
+
+.. image:: minion-shell-flow.svg
+
+
+
+Scripts
+-------------------------------------------------------------------------------
+
 On a minion machine, there will be a minion directory with a layout similar to
 this:
 
 .. code-block:: text
 
     minion/
+        logs/
         certs/
         facts/
             os
