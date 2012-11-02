@@ -8,6 +8,7 @@ __all__ = ['SimpleProtocol', 'Channel3Protocol', 'spawnChannel3']
 from twisted.internet import protocol, defer, interfaces, reactor
 from twisted.protocols.basic import NetstringReceiver
 from twisted.python.runtime import platform
+from twisted.python.filepath import FilePath
 
 from zope.interface import implements
 
@@ -216,7 +217,7 @@ def _spawnDefaultArgs(executable, args=(), env={}, path=None, uid=None,
     @return: A dictionary with the values that will be used when spawning.
     """
     if env is None:
-        env = os.environ
+        env = dict(os.environ)
     path = path or os.curdir
     uid = uid or os.geteuid()
     gid = gid or os.getegid()
@@ -247,6 +248,10 @@ def spawnChannel3(name, ch3_receiver, protocol, executable, args=(), env={},
     """
     p = Channel3Protocol(name, ch3_receiver, protocol)
     
+    # XXX this ought to be configurable.  I guess it is if you spawn the
+    # process yourself.
+    p.done.addErrback(lambda x:None)
+    
     # log it
     log_kwargs = _spawnDefaultArgs(executable,args,env,path,uid,gid,usePTY)
     ch3_receiver(ch3.spawnProcess(name, **log_kwargs))
@@ -261,6 +266,58 @@ def spawnChannel3(name, ch3_receiver, protocol, executable, args=(), env={},
     reactor.spawnProcess(p, executable, args, env, path, uid, gid, usePTY,
                          childFDs)
     return p
+
+
+
+class ScriptRunner(object):
+    """
+    XXX
+    """
+    
+    protocol = SimpleProtocol
+    shell = '/bin/bash'
+
+
+    def __init__(self, path, ch3_receiver):
+        self.path = FilePath(path)
+        self.ch3_receiver = ch3_receiver
+
+
+    def find(self, name):
+        """
+        XXX
+        """
+        parts = name.split('/')
+        ret = self.path
+        for part in parts:
+            ret = ret.child(part)
+        return ret
+
+
+    def spawn(self, name, path, args, stdin):
+        """
+        XXX
+        """
+        # XXX I am not tested
+        proto = self.protocol(stdin)
+        spawnChannel3(name, self.ch3_receiver, proto, path,
+                      [os.path.basename(path)] + args, self.makeEnv(),
+                      self.path.path)
+        return proto
+
+
+    def makeEnv(self):
+        """
+        XXX
+        """
+
+
+    def run(self, name, args, stdin):
+        """
+        XXX
+        """
+        script = self.find(name)
+        return self.spawn(name, script.path, args, stdin)
 
 
 

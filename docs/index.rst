@@ -53,6 +53,7 @@ this:
 .. code-block:: text
 
     master/
+        logs/
         certs/
         actors/
             prescribe
@@ -105,6 +106,7 @@ this:
 .. code-block:: text
 
     minion/
+        logs/
         certs/
         facts/
             os

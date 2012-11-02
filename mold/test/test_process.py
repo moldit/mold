@@ -1,17 +1,18 @@
 from twisted.trial.unittest import TestCase, SkipTest
 from twisted.test.proto_helpers import StringTransport
 from twisted.internet import reactor, defer, error, interfaces, protocol
-from twisted.python.filepath import FilePath
+from twisted.python.filepath import FilePath, InsecurePath
 from twisted.python import failure, log
 from twisted.python.runtime import platform
 
 from zope.interface.verify import verifyClass, verifyObject
-from mock import MagicMock, Mock
+from mock import MagicMock, Mock, create_autospec
 
 import os
+import sys
 
 from mold.process import (Channel3Protocol, _spawnDefaultArgs, spawnChannel3,
-                          SimpleProtocol)
+                          SimpleProtocol, ScriptRunner)
 from mold import ch3
 
 
@@ -462,7 +463,98 @@ class spawnChannel3Test(TestCase):
             self.assertEqual(status.value.exitCode, 0)
             for x in history:
                 log.msg(x)
+            print 'hello?'
         return p.done.addErrback(check)
+
+
+
+class ScriptRunnerTest(TestCase):
+
+
+    timeout = 1
+    
+    
+    def test_init(self):
+        """
+        A script runner runs scripts in a directory, so it needs the directory
+        where it is based.
+        """
+        runner = ScriptRunner('foo', 'logger')
+        self.assertEqual(runner.path, FilePath('foo'))
+        self.assertEqual(runner.ch3_receiver, 'logger')
+        self.assertEqual(runner.protocol, SimpleProtocol)
+        self.assertEqual(runner.shell, '/bin/bash')
+
+
+    def test_find(self):
+        """
+        It can find scripts
+        """
+        p = FilePath('foo')
+        runner = ScriptRunner(p.path, None)
         
+        self.assertEqual(runner.find('something'), p.child('something'))
+        self.assertEqual(runner.find('a/b'), p.child('a').child('b'))
+        self.assertRaises(InsecurePath, runner.find, '../a')
+        self.assertRaises(InsecurePath, runner.find, 'a/../../b')
+
+
+    def test_makeEnv(self):
+        """
+        """
+        runner = ScriptRunner('foo', None)
+        self.assertEqual(runner.makeEnv(), None)
+
+
+    def test_run(self):
+        """
+        You can run scripts in a directory
+        """
+        runner = ScriptRunner('something', 'ch3_logger')
+        runner.find = create_autospec(runner.find,
+                                      return_value=FilePath('the script'))
+        runner.spawn = create_autospec(runner.spawn,
+                                       return_value='spawn ret')
+        
+        r = runner.run('joe', ['a', 'b'], 'stdin stuff')
+        
+        runner.find.assert_called_with('joe')
+        runner.spawn.assert_called_with('joe',
+                                        FilePath('the script').path,
+                                        ['a', 'b'],
+                                        'stdin stuff')
+        self.assertEqual(r, 'spawn ret')
+
+
+    def test_functional(self):
+        """
+        It works
+        """
+        root = FilePath(self.mktemp())
+        root.makedirs()
+        
+        foo = root.child('foo')
+        foo.setContent('#!%s\n'
+                       'import sys, os\n'
+                       'print sys.argv[1]\n'
+                       'print sys.stdin.read()\n' % (sys.executable,))
+        foo.chmod(0777)
+        
+        history = []
+        runner = ScriptRunner(root.path, history.append)
+        r = runner.run('foo', ['something'], 'guts')
+        def check(proto):
+            self.assertEqual(proto.stdout, 'something\nguts\n')
+            self.assertEqual(proto.stderr, '')
+            self.assertTrue(len(history) > 0)
+        def eb(res):
+            print res
+            print ''
+            for i in history:
+                if i.key in [1,2,3]:
+                    print i.data['line']
+            return res
+        return r.done.addCallback(check).addErrback(eb)
+
 
 
