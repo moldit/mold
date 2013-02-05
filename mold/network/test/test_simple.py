@@ -40,4 +40,8 @@ class AmpMinionTest(TestCase):
         """
         You can run scripts
         """
-        runner = SingleUseRunner(
+        proto = SimpleProtocol('')
+        runner = SingleUseRunner(proto)
+        m = AmpMinion(runner)
+        
+        r = m.run('resources/file', ['inspect'], 'some data') 

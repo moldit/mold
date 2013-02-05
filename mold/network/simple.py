@@ -26,12 +26,17 @@ class Minion(amp.AMP):
     @Run.responder
     def run(self, name, args, stdin):
         r = self.factory.runner.run(name, args, stdin)
-        return r.done.addCallback(self.runDone)
+        return r.done.addCallback(self.runDone).addErrback(self.runErr, r)
 
+
+    def runErr(self, err, proto):
+        return {
+            'exitcode': err.value.exitCode,
+            'stdout': proto.stdout,
+            'stderr': proto.stderr,
+        }
 
     def runDone(self, proto):
-        print proto
-        print dir(proto)
         return {
             'exitcode': 0,
             'stdout': proto.stdout,
@@ -49,6 +54,7 @@ def runOne(host, port, name, args, stdin):
     def gotResponse(response):
         print response
     return _run(host, port, name, args, stdin).addBoth(gotResponse)
+
 
 
 class MinionOptions(usage.Options):
