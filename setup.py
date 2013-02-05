@@ -22,12 +22,6 @@ setup(
     package_data={
         'mold': template_files,
     },
-    install_requires=[
-        'Twisted>=10.2.0',
-        'pyOpenSSL',
-        'jsonschema',
-        'Jinja2',
-    ],
     scripts=[
         'bin/mold',
     ],

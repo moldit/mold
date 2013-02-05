@@ -26,7 +26,7 @@ Mold has 3 goals:
 
 Install it:
 
-    pip install -e git://github.com/moldit/mold.git
+    pip install https://github.com/moldit/mold/tarball/master
 
 Create a minion:
 
