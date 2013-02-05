@@ -77,6 +77,7 @@ class SimpleProtocolTest(TestCase):
         return p.done.addCallbacks(cb, eb)
 
 
+
 class Channel3ProtocolTest(TestCase):
 
 

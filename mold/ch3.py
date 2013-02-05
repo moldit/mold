@@ -1,58 +1,32 @@
 
 
-__all__ = ['Message', 'encode', 'decode', 'fd', 'spawnProcess', 'exit']
+__all__ = ['ProcessStream', 'ProcessStarted', 'ProcessEnded']
 
-
-import os
-import json
 
 from collections import namedtuple
 
 
-decode = json.loads
-encode = json.dumps
 
-
-Message = namedtuple('Message', ['name', 'key', 'data'])
-
-
-
-def fd(name, fdnumber, data):
+class ProcessStream(namedtuple('ProcessStream',
+    ['pid', 'fd', 'data'])):
     """
-    XXX
+    I am a message indicating that data was written to a process pipe.
     """
-    r = {'line': data}
-    try:
-        encode(r)
-    except UnicodeDecodeError as e:
-        r['line'] = data.encode('base64')
-        r['encoding'] = 'base64'    
-    return Message(name, fdnumber, r)
 
 
 
-def spawnProcess(name, executable, args, env, path, uid, gid, usePTY):
+class ProcessStarted(namedtuple('ProcessStarted',
+    ['pid', 'executable', 'args', 'env', 'path', 'uid', 'gid', 'usePTY'])):
     """
-    XXX
+    I am a message indicating that a process was started.
     """
-    return Message(name, 'spawn', {
-        'executable': executable,
-        'args': args,
-        'env': env,
-        'path': path,
-        'uid': uid,
-        'gid': gid,
-        'usePTY': usePTY,
-    })
 
 
 
-def exit(name, code, signal):
+class ProcessEnded(namedtuple('ProcessEnded',
+    ['pid', 'exitcode', 'signal'])):
     """
+    I am a message indicating that a process ended.
     """
-    return Message(name, 'exit', {
-        'code': code,
-        'signal': signal,
-    })
 
 

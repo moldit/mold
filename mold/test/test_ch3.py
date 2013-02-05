@@ -1,108 +1,60 @@
 from twisted.trial.unittest import TestCase
+from zope.interface.verify import verifyObject
 
 import os
 
-from mold.ch3 import (fd, spawnProcess, exit, decode, encode, Message)
+from mold.ch3 import ProcessStream, ProcessStarted, ProcessEnded
 
 
 
-class MessageTest(TestCase):
+class ProcessStreamTest(TestCase):
 
 
-    def test_attrs(self):
+    def test_init(self):
         """
-        Every message has these attributes
+        You can initialize it with pid, descriptor and data
         """
-        m = Message('name', 'key', 'data')
-        self.assertEqual(m.name, 'name')
-        self.assertEqual(m.key, 'key')
-        self.assertEqual(m.data, 'data')
+        d = ProcessStream(12343, 0, 'data')
+        self.assertEqual(d.pid, 12343)
+        self.assertEqual(d.fd, 0)
+        self.assertEqual(d.data, 'data')
 
 
-    def test_equality(self):
+class ProcessStartedTest(TestCase):
+
+
+    def test_init(self):
         """
-        Equal messages are equal
+        You can initialize with all the args a spawned process will have
         """
-        m = Message('name', 'key', 'data')
-        m2 = Message('name', 'key', 'data')
-        self.assertEqual(m, m2)
-
-
-
-class exitTest(TestCase):
-
-
-    def test_basic(self):
-        """
-        It takes an exit code and signal
-        """
-        self.assertEqual(exit('joe', 3, 'signal'),
-                         Message('joe', 'exit', {
-                            'code': 3,
-                            'signal': 'signal',
-                         }))
-
-
-
-class spawnProcessTest(TestCase):
-
-
-    def test_basic(self):
-        """
-        You can indicate that a process was spawned
-        """
-        self.assertEqual(spawnProcess('joe', 'executable',
-                         args=['foo', 'bar'],
+        d = ProcessStarted(123, 'executable', args=['foo', 'bar'],
                          env={'something': 'here'},
                          path='some path',
                          uid='userid',
                          gid='groupid',
-                         usePTY='foo'),
-                         Message('joe', 'spawn', {
-                            'executable': 'executable',
-                            'args': ['foo', 'bar'],
-                            'env': {'something': 'here'},
-                            'path': 'some path',
-                            'uid': 'userid',
-                            'gid': 'groupid',
-                            'usePTY': 'foo',
-                        })
-        )
+                         usePTY='foo')
+        self.assertEqual(d.pid, 123)
+        self.assertEqual(d.executable, 'executable')
+        self.assertEqual(d.args, ['foo', 'bar'])
+        self.assertEqual(d.env, {'something': 'here'})
+        self.assertEqual(d.path, 'some path')
+        self.assertEqual(d.uid, 'userid')
+        self.assertEqual(d.gid, 'groupid')
+        self.assertEqual(d.usePTY, 'foo')
 
 
 
-class fdTest(TestCase):
+class ProcessEndedTest(TestCase):
 
 
-    def test_basic(self):
+    def test_init(self):
         """
-        A stream accepts a name, a file descriptor and some data.
+        You can initialize with the right stuff to indicate a process exit
         """
-        m = fd('joe', 2, 'data')
-        self.assertEqual(m, Message('joe', 2, {'line': 'data'}))
-
-
-    def test_binary(self):
-        """
-        If there's binary data, encode it.
-        """
-        m = fd('joe', 2, '\x00\x01\xff')
-        self.assertEqual(m, Message('joe', 2, {
-            'line': '\x00\x01\xff'.encode('base64'),
-            'encoding': 'base64',
-        }))
-
-
-
-class encode_decodeTest(TestCase):
-
-
-    def test_works(self):
-        """
-        You can encode and decode things
-        """
-        r = decode(encode(['foo', 'bar']))
-        self.assertEqual(r, ['foo', 'bar'])
+        d = ProcessEnded(123, 20, 'signal')
+        self.assertEqual(d.pid, 123)
+        self.assertEqual(d.exitcode, 20)
+        self.assertEqual(d.signal, 'signal')
 
 
 
