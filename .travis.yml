@@ -4,7 +4,7 @@ python:
   - "2.7"
 # no python 3 until Twisted supports it
 #  - "3.2"
-  - "pypy"
+#  - "pypy"
 
 install:
   - python setup.py install
