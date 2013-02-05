@@ -3,11 +3,9 @@
 XXX
 """
 
-__all__ = ['SimpleProtocol', 'Channel3Protocol', 'spawnChannel3',
-           'ScriptRunner']
+__all__ = ['SimpleProtocol', 'Channel3Protocol', 'spawnChannel3']
 
 from twisted.internet import protocol, defer, interfaces, reactor
-from twisted.protocols.basic import NetstringReceiver
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
 
@@ -77,12 +75,11 @@ class Channel3Protocol(protocol.ProcessProtocol):
     """
     
     implements(interfaces.IProcessTransport)
+    _pid = None
     
     
-    def __init__(self, name, channel3_receiver, sub_proto):
+    def __init__(self, channel3_receiver, sub_proto):
         """
-        @ivar name: Unique-ish name for the process I'm attached to.
-
         @ivar channel3_receiver: A function that will be called with
             L{Messages<ch3.Message>} when interesting log events happen.
 
@@ -93,33 +90,19 @@ class Channel3Protocol(protocol.ProcessProtocol):
         """
         self.done = defer.Deferred()
         self.started = defer.Deferred()
-        self.name = name
         self.sub_proto = sub_proto
         self._ch3_receiver = channel3_receiver
-        
-        # some initialization happens in makeConnection
-        self._ch3_netstring = NetstringReceiver()
-        self._ch3_netstring.makeConnection(None)
-        self._ch3_netstring.stringReceived = self._ch3DataReceived
 
 
     def connectionMade(self):
-        self.sub_proto.makeConnection(self)
+        self._pid = self.transport.pid
         self.started.callback(self)
+        self.sub_proto.makeConnection(self)
 
 
     def childDataReceived(self, childfd, data):
-        if childfd == 3:
-            self._ch3_netstring.dataReceived(data)
-        else:
-            self._ch3_receiver(ch3.fd(self.name, childfd, data))
+        self._ch3_receiver(ch3.ProcessStream(self.pid, childfd, data))
         self.sub_proto.childDataReceived(childfd, data)
-
-
-    def _ch3DataReceived(self, data):
-        name, key, val = ch3.decode(data)
-        name = '.'.join([self.name, name])
-        self._ch3_receiver(ch3.Message(name, key, val))
 
 
     def inConnectionLost(self):
@@ -142,7 +125,7 @@ class Channel3Protocol(protocol.ProcessProtocol):
         """
         XXX
         """
-        self._ch3_receiver(ch3.exit(self.name,
+        self._ch3_receiver(ch3.ProcessEnded(self.pid,
                                     status.value.exitCode,
                                     status.value.signal))
         self.sub_proto.processEnded(status)
@@ -153,6 +136,7 @@ class Channel3Protocol(protocol.ProcessProtocol):
     
     @property
     def pid(self):
+        return self._pid
         if self.transport:
             return self.transport.pid
 
@@ -193,18 +177,18 @@ class Channel3Protocol(protocol.ProcessProtocol):
         """
         Write to stdin
         """
-        self._ch3_receiver(ch3.fd(self.name, 0, data))
+        self._ch3_receiver(ch3.ProcessStream(self.pid, 0, data))
         return self.transport.write(data)
 
 
     def writeToChild(self, childFD, data):
-        self._ch3_receiver(ch3.fd(self.name, childFD, data))
+        self._ch3_receiver(ch3.ProcessStream(self.pid, childFD, data))
         return self.transport.writeToChild(childFD, data)
 
 
     def writeSequence(self, seq):
         for x in seq:
-            self._ch3_receiver(ch3.fd(self.name, 0, x))
+            self._ch3_receiver(ch3.ProcessStream(self.pid, 0, x))
         return self.transport.writeSequence(seq)
 
 
@@ -234,7 +218,7 @@ def _spawnDefaultArgs(executable, args=(), env={}, path=None, uid=None,
 
 
 
-def spawnChannel3(name, ch3_receiver, protocol, executable, args=(), env={},
+def spawnChannel3(ch3_receiver, protocol, executable, args=(), env={},
                   path=None, uid=None, gid=None, usePTY=0):
     """
     Spawn a process with Channel3 logging enabled.
@@ -247,15 +231,25 @@ def spawnChannel3(name, ch3_receiver, protocol, executable, args=(), env={},
     
     @param **kwargs: See C{reactor.spawnProcess}.
     """
-    p = Channel3Protocol(name, ch3_receiver, protocol)
-    
-    # XXX this ought to be configurable.  I guess it is if you spawn the
-    # process yourself.
-    p.done.addErrback(lambda x:None)
-    
-    # log it
-    log_kwargs = _spawnDefaultArgs(executable,args,env,path,uid,gid,usePTY)
-    ch3_receiver(ch3.spawnProcess(name, **log_kwargs))
+    p = Channel3Protocol(ch3_receiver, protocol)  
+    kw = _spawnDefaultArgs(executable, args, env, path, uid, gid, usePTY)
+
+    # log it    
+    def logSpawn(p):
+        ch3_receiver(ch3.ProcessStarted(
+            os.getpid(),
+            p.pid,
+            kw['executable'],
+            kw['args'],
+            kw['env'],
+            kw['path'],
+            kw['uid'],
+            kw['gid'],
+            kw['usePTY'],
+        ))
+        return p
+    p.started.addCallback(logSpawn)
+
     
     # spawn it
     childFDs = {
@@ -267,58 +261,5 @@ def spawnChannel3(name, ch3_receiver, protocol, executable, args=(), env={},
     reactor.spawnProcess(p, executable, args, env, path, uid, gid, usePTY,
                          childFDs)
     return p
-
-
-
-class ScriptRunner(object):
-    """
-    XXX
-    """
-    
-    protocol = SimpleProtocol
-    shell = '/bin/bash'
-
-
-    def __init__(self, path, ch3_receiver):
-        self.path = FilePath(path)
-        self.ch3_receiver = ch3_receiver
-
-
-    def find(self, name):
-        """
-        XXX
-        """
-        parts = name.split('/')
-        ret = self.path
-        for part in parts:
-            ret = ret.child(part)
-        return ret
-
-
-    def spawn(self, name, path, args, stdin):
-        """
-        XXX
-        """
-        # XXX I am not tested
-        proto = self.protocol(stdin)
-        spawnChannel3(name, self.ch3_receiver, proto, path,
-                      [os.path.basename(path)] + args, self.makeEnv(),
-                      self.path.path)
-        return proto
-
-
-    def makeEnv(self):
-        """
-        XXX
-        """
-
-
-    def run(self, name, args, stdin):
-        """
-        XXX
-        """
-        script = self.find(name)
-        return self.spawn(name, script.path, args, stdin)
-
 
 

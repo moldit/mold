@@ -12,8 +12,9 @@ import os
 import sys
 
 from mold.process import (Channel3Protocol, _spawnDefaultArgs, spawnChannel3,
-                          SimpleProtocol, ScriptRunner)
+                          SimpleProtocol)
 from mold import ch3
+
 
 
 
@@ -91,8 +92,7 @@ class Channel3ProtocolTest(TestCase):
         """
         data = []
         other_proto = object()
-        p = Channel3Protocol('name', data.append, other_proto)
-        self.assertEqual(p.name, 'name')
+        p = Channel3Protocol(data.append, other_proto)
         self.assertEqual(p.sub_proto, other_proto)
 
 
@@ -102,9 +102,14 @@ class Channel3ProtocolTest(TestCase):
         """
         data = []
         proto = MagicMock()
-        p = Channel3Protocol('joe', data.append, proto)
+        transport = MagicMock()
+        transport.pid = 123
+        
+        p = Channel3Protocol(data.append, proto)
+        p.makeConnection(transport)
         p.childDataReceived(1, 'some data')
-        self.assertEqual(data[0], ch3.fd('joe', 1, 'some data'))
+        
+        self.assertEqual(data[0], ch3.ProcessStream(123, 1, 'some data'))
         proto.childDataReceived.assert_called_with(1, 'some data')
 
 
@@ -114,9 +119,14 @@ class Channel3ProtocolTest(TestCase):
         """
         data = []
         proto = MagicMock()
-        p = Channel3Protocol('joe', data.append, proto)
+        transport = MagicMock()
+        transport.pid = 123
+        
+        p = Channel3Protocol(data.append, proto)
+        p.makeConnection(transport)
         p.childDataReceived(2, 'some data')
-        self.assertEqual(data[0], ch3.fd('joe', 2, 'some data'))
+        
+        self.assertEqual(data[0], ch3.ProcessStream(123, 2, 'some data'))
         proto.childDataReceived.assert_called_with(2, 'some data')
 
 
@@ -127,11 +137,15 @@ class Channel3ProtocolTest(TestCase):
         """
         data = []
         proto = MagicMock()
-        p = Channel3Protocol('joe', data.append, proto)
-        info = ch3.encode(ch3.fd('jim', 2, 'foo bar'))
-        p.childDataReceived(3, '%d:%s,' % (len(info), info))
-        self.assertEqual(data[0], ch3.fd('joe.jim', 2, 'foo bar'))
-        proto.childDataReceived.assert_called_with(3, '%d:%s,' % (len(info), info))
+        transport = MagicMock()
+        transport.pid = 123
+        
+        p = Channel3Protocol(data.append, proto)
+        p.makeConnection(transport)
+        p.childDataReceived(3, 'foo')
+        
+        self.assertEqual(data[0], ch3.ProcessStream(123, 3, 'foo'))
+        proto.childDataReceived.assert_called_with(3, 'foo')
 
 
     def test_processEnded(self):
@@ -140,14 +154,18 @@ class Channel3ProtocolTest(TestCase):
         """
         data = []
         proto = MagicMock()
-        p = Channel3Protocol('joe', data.append, proto)
+        transport = MagicMock()
+        transport.pid = 123
+        
+        p = Channel3Protocol(data.append, proto)
+        p.makeConnection(transport)
         self.assertFalse(p.done.called, "Should not have finished yet") 
         
         res = failure.Failure(error.ProcessDone('foo'))
         p.processEnded(res)
         proto.processEnded.assert_called_with(res)
         
-        self.assertEqual(data[0], ch3.exit('joe', 0, None))
+        self.assertEqual(data[0], ch3.ProcessEnded(123, 0, None))
         self.assertEqual(p.done.result, res)
         return p.done.addErrback(lambda x:None)
 
@@ -156,10 +174,16 @@ class Channel3ProtocolTest(TestCase):
         """
         If a process exits with a signal
         """
-        data = []        
-        p = Channel3Protocol('joe', data.append, MagicMock())
+        data = []
+        
+        transport = MagicMock()
+        transport.pid = 234
+        
+        p = Channel3Protocol(data.append, MagicMock())
+        p.makeConnection(transport)
+        
         p.processEnded(failure.Failure(error.ProcessTerminated(12, 'kill')))
-        self.assertEqual(data[0], ch3.exit('joe', 12, 'kill'))
+        self.assertEqual(data[0], ch3.ProcessEnded(234, 12, 'kill'))
         return p.done.addErrback(lambda x:None)
 
 
@@ -168,7 +192,7 @@ class Channel3ProtocolTest(TestCase):
         Should call through to sub_proto
         """
         proto = MagicMock()
-        p = Channel3Protocol('joe', None, proto)
+        p = Channel3Protocol(None, proto)
         p.processExited('whatever')
         proto.processExited.assert_called_with('whatever')
 
@@ -177,7 +201,8 @@ class Channel3ProtocolTest(TestCase):
         """
         Should let you know when the connection is made and inform the sub_proto
         """
-        p = Channel3Protocol('joe', None, MagicMock())
+        p = Channel3Protocol(None, MagicMock())
+        p.transport = MagicMock()
         p.connectionMade()
         p.sub_proto.makeConnection.assert_called_with(p)
         def check(r):
@@ -190,7 +215,7 @@ class Channel3ProtocolTest(TestCase):
         Should pass through to sub_proto
         """
         proto = MagicMock()
-        p = Channel3Protocol('joe', None, proto)
+        p = Channel3Protocol(None, proto)
         p.inConnectionLost()
         proto.inConnectionLost.assert_called_with()
 
@@ -200,7 +225,7 @@ class Channel3ProtocolTest(TestCase):
         Should pass through to sub_proto
         """
         proto = MagicMock()
-        p = Channel3Protocol('joe', None, proto)
+        p = Channel3Protocol(None, proto)
         p.outConnectionLost()
         proto.outConnectionLost.assert_called_with()
 
@@ -210,7 +235,7 @@ class Channel3ProtocolTest(TestCase):
         Should pass through to sub_proto
         """
         proto = MagicMock()
-        p = Channel3Protocol('joe', None, proto)
+        p = Channel3Protocol(None, proto)
         p.errConnectionLost()
         proto.errConnectionLost.assert_called_with()
 
@@ -223,7 +248,7 @@ class Channel3ProtocolTest(TestCase):
         protocol.
         """
         verifyObject(interfaces.IProcessTransport,
-                     Channel3Protocol('name', None, None))
+                     Channel3Protocol(None, None))
 
 
     def assertCallTransport(self, name, *args, **kwargs):
@@ -235,7 +260,7 @@ class Channel3ProtocolTest(TestCase):
         mock = Mock(return_value='foo')
         setattr(transport, name, mock)
         
-        proto = Channel3Protocol('name', lambda x:None, MagicMock())
+        proto = Channel3Protocol(lambda x:None, MagicMock())
         proto.makeConnection(transport)
         
         result = getattr(proto, name)(*args, **kwargs)
@@ -251,7 +276,7 @@ class Channel3ProtocolTest(TestCase):
         """
         Should have the same pid as the transport.
         """
-        p = Channel3Protocol('joe', None, MagicMock())
+        p = Channel3Protocol(None, MagicMock())
         self.assertEqual(p.pid, None)
         t = StringTransport()
         t.pid = 23
@@ -299,10 +324,11 @@ class Channel3ProtocolTest(TestCase):
         
         data = []
         t = StringTransport()
-        p = Channel3Protocol('joe', data.append, MagicMock())
+        t.pid = 23
+        p = Channel3Protocol(data.append, MagicMock())
         p.makeConnection(t)
         p.write('foo bar')
-        self.assertEqual(data[0], ch3.fd('joe', 0, 'foo bar'))
+        self.assertEqual(data[0], ch3.ProcessStream(23, 0, 'foo bar'))
         self.assertEqual(t.value(), 'foo bar')
 
 
@@ -314,10 +340,11 @@ class Channel3ProtocolTest(TestCase):
         
         data = []
         t = MagicMock()
-        p = Channel3Protocol('joe', data.append, MagicMock())
+        t.pid = 10
+        p = Channel3Protocol(data.append, MagicMock())
         p.makeConnection(t)
         p.writeToChild(22, "some data")
-        self.assertEqual(data[0], ch3.fd('joe', 22, 'some data'))
+        self.assertEqual(data[0], ch3.ProcessStream(10, 22, 'some data'))
 
 
     def test_writeSequence(self):
@@ -328,11 +355,12 @@ class Channel3ProtocolTest(TestCase):
         
         data = []
         t = MagicMock()
-        p = Channel3Protocol('joe', data.append, MagicMock())
+        t.pid = 100
+        p = Channel3Protocol(data.append, MagicMock())
         p.makeConnection(t)
         p.writeSequence(['foo', 'bar'])
-        self.assertEqual(data[0], ch3.fd('joe', 0, 'foo'))
-        self.assertEqual(data[1], ch3.fd('joe', 0, 'bar'))
+        self.assertEqual(data[0], ch3.ProcessStream(100, 0, 'foo'))
+        self.assertEqual(data[1], ch3.ProcessStream(100, 0, 'bar'))
 
 
 
@@ -456,106 +484,36 @@ class spawnChannel3Test(TestCase):
         """
         proto = MagicMock()
         history = []
-        p = spawnChannel3('jim', history.append, proto, '/bin/ls', ['ls', '-al'])
+        p = spawnChannel3(history.append, proto, '/bin/ls', ['ls', '-al'])
         kwargs = _spawnDefaultArgs('/bin/ls', ['ls', '-al'])
-        self.assertEqual(history[0], ch3.spawnProcess('jim', **kwargs),
-                         "Should indicate the arguments used to spawn")
+        
         def check(status):
+            # should indicate that the process was spawned
+            msg = history[0]
+            self.assertTrue(isinstance(msg, ch3.ProcessStarted))
+            self.assertEqual(msg.ppid, os.getpid())
+            self.assertEqual(msg.pid, p.pid)
+            self.assertEqual(msg.executable, kwargs['executable'])
+            self.assertEqual(msg.args, kwargs['args'])
+            self.assertEqual(msg.env, kwargs['env'])
+            self.assertEqual(msg.path, kwargs['path'])
+            self.assertEqual(msg.uid, kwargs['uid'])
+            self.assertEqual(msg.gid, kwargs['gid'])
+            self.assertEqual(msg.usePTY, kwargs['usePTY'])
+            
             self.assertEqual(status.value.exitCode, 0)
+            
+            # should indicate that the process exited
+            msg = history[-1]
+            self.assertTrue(isinstance(msg, ch3.ProcessEnded))
+            self.assertEqual(msg.pid, p.pid)
+            self.assertEqual(msg.exitcode, 0)
+            self.assertEqual(msg.signal, None)
+            
             for x in history:
                 log.msg(x)
-            print 'hello?'
-        return p.done.addErrback(check)
+        return p.done.addBoth(check)
 
-
-
-class ScriptRunnerTest(TestCase):
-
-
-    timeout = 1
-    
-    
-    def test_init(self):
-        """
-        A script runner runs scripts in a directory, so it needs the directory
-        where it is based.
-        """
-        runner = ScriptRunner('foo', 'logger')
-        self.assertEqual(runner.path, FilePath('foo'))
-        self.assertEqual(runner.ch3_receiver, 'logger')
-        self.assertEqual(runner.protocol, SimpleProtocol)
-        self.assertEqual(runner.shell, '/bin/bash')
-
-
-    def test_find(self):
-        """
-        It can find scripts
-        """
-        p = FilePath('foo')
-        runner = ScriptRunner(p.path, None)
-        
-        self.assertEqual(runner.find('something'), p.child('something'))
-        self.assertEqual(runner.find('a/b'), p.child('a').child('b'))
-        self.assertRaises(InsecurePath, runner.find, '../a')
-        self.assertRaises(InsecurePath, runner.find, 'a/../../b')
-
-
-    def test_makeEnv(self):
-        """
-        """
-        runner = ScriptRunner('foo', None)
-        self.assertEqual(runner.makeEnv(), None)
-
-
-    def test_run(self):
-        """
-        You can run scripts in a directory
-        """
-        runner = ScriptRunner('something', 'ch3_logger')
-        runner.find = create_autospec(runner.find,
-                                      return_value=FilePath('the script'))
-        runner.spawn = create_autospec(runner.spawn,
-                                       return_value='spawn ret')
-        
-        r = runner.run('joe', ['a', 'b'], 'stdin stuff')
-        
-        runner.find.assert_called_with('joe')
-        runner.spawn.assert_called_with('joe',
-                                        FilePath('the script').path,
-                                        ['a', 'b'],
-                                        'stdin stuff')
-        self.assertEqual(r, 'spawn ret')
-
-
-    def test_functional(self):
-        """
-        It works
-        """
-        root = FilePath(self.mktemp())
-        root.makedirs()
-        
-        foo = root.child('foo')
-        foo.setContent('#!%s\n'
-                       'import sys, os\n'
-                       'print sys.argv[1]\n'
-                       'print sys.stdin.read()\n' % (sys.executable,))
-        foo.chmod(0777)
-        
-        history = []
-        runner = ScriptRunner(root.path, history.append)
-        r = runner.run('foo', ['something'], 'guts')
-        def check(proto):
-            self.assertEqual(proto.stdout, 'something\nguts\n')
-            self.assertEqual(proto.stderr, '')
-            self.assertTrue(len(history) > 0)
-        def eb(res):
-            print res
-            print ''
-            for i in history:
-                if i.key in [1,2,3]:
-                    print i.data['line']
-            return res
-        return r.done.addCallback(check).addErrback(eb)
 
 
 

@@ -16,7 +16,7 @@ class ProcessStream(namedtuple('ProcessStream',
 
 
 class ProcessStarted(namedtuple('ProcessStarted',
-    ['pid', 'executable', 'args', 'env', 'path', 'uid', 'gid', 'usePTY'])):
+    ['ppid', 'pid', 'executable', 'args', 'env', 'path', 'uid', 'gid', 'usePTY'])):
     """
     I am a message indicating that a process was started.
     """

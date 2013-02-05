@@ -20,6 +20,7 @@ class ProcessStreamTest(TestCase):
         self.assertEqual(d.data, 'data')
 
 
+
 class ProcessStartedTest(TestCase):
 
 
@@ -27,12 +28,13 @@ class ProcessStartedTest(TestCase):
         """
         You can initialize with all the args a spawned process will have
         """
-        d = ProcessStarted(123, 'executable', args=['foo', 'bar'],
+        d = ProcessStarted(562, 123, 'executable', args=['foo', 'bar'],
                          env={'something': 'here'},
                          path='some path',
                          uid='userid',
                          gid='groupid',
                          usePTY='foo')
+        self.assertEqual(d.ppid, 562)
         self.assertEqual(d.pid, 123)
         self.assertEqual(d.executable, 'executable')
         self.assertEqual(d.args, ['foo', 'bar'])
@@ -55,6 +57,3 @@ class ProcessEndedTest(TestCase):
         self.assertEqual(d.pid, 123)
         self.assertEqual(d.exitcode, 20)
         self.assertEqual(d.signal, 'signal')
-
-
-
