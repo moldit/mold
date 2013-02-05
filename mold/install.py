@@ -6,14 +6,10 @@ template_root = FilePath(__file__).parent().child('templates')
 
 
 
-class Directory:
+class Directory(FilePath):
 
     
     template_root = template_root
-
-
-    def __init__(self, path):
-        self.path = FilePath(path)
 
 
     def create(self, name):
@@ -22,6 +18,11 @@ class Directory:
         template directory C{name}.
         """
         src = self.template_root.child(name)
-        src.copyTo(self.path)
+        src.copyTo(self)
+
+
+    def makeExecutable(self):
+        for f in self.walk():
+            f.chmod(0755)
         
         
