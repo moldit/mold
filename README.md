@@ -1,4 +1,4 @@
-[![Build Status](https://secure.travis-ci.org/iffy/mold.png)](http://travis-ci.org/iffy/mold)
+[![Build Status](https://secure.travis-ci.org/moldit/mold.png)](http://travis-ci.org/moldit/mold)
 
 Docs: http://mold.rtfd.org/
 
