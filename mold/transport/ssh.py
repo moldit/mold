@@ -23,7 +23,6 @@ class MyProtocol(Protocol):
 
 
     def connectionMade(self):
-        print 'connection made'
         self.finished = defer.Deferred()
 
 
@@ -32,35 +31,8 @@ class MyProtocol(Protocol):
 
 
     def connectionLost(self, reason):
-        print 'connection lost: %s' % (reason,)
         self.finished.callback(None)
 
-
-class StdinProto(basic.LineReceiver):
-
-    from os import linesep as delimiter
-
-
-    def __init__(self, ssh_conn):
-        self.ssh_conn = ssh_conn
-
-    def connectionMade(self):
-        self.finished = defer.Deferred()
-        self.transport.write('>>> ')
-
-    def lineReceived(self, line):
-        self.sendLine('Executing ' + line)
-
-        factory = Factory()
-        factory.protocol = MyProtocol
-
-        e = SSHCommandClientEndpoint.existingConnection(self.ssh_conn,
-                                                        line.strip())
-        return e.connect(factory).addCallback(lambda proto: proto.finished)
-
-
-    def connectionLost(self, reason):
-        self.finished.callback(None)
 
 
 def main(reactor):
@@ -72,7 +44,7 @@ def main(reactor):
 
     ep = SSHCommandClientEndpoint.newConnection(
         reactor, b'/bin/cat', 'dev', '10.1.15.7',
-        port=22, keys=keys, password='', agentEndpoint=None, knownHosts=None)
+        port=22, keys=keys, agentEndpoint=None, knownHosts=None)
     factory = Factory()
     factory.protocol = MyProtocol
 
@@ -80,16 +52,14 @@ def main(reactor):
 
 
     def gotConnection(proto):
-        # stdio interface
-        stdio_proto = StdinProto(proto.transport.conn)
-        stdio.StandardIO(stdio_proto)
+        conn = proto.transport.conn
 
-        # factory = Factory()
-        # factory.protocol = MyProtocol
+        factory = Factory()
+        factory.protocol = MyProtocol
 
-        # e = SSHCommandClientEndpoint.existingConnection(conn, b"/bin/echo hey")
-        # return e.connect(factory).addCallback(lambda proto: proto.finished)
-        return stdio_proto.finished
+        e = SSHCommandClientEndpoint.existingConnection(conn, b"/bin/ls -al")
+        return e.connect(factory).addCallback(lambda proto: proto.finished)
+        #return stdio_proto.finished
 
     return d.addCallback(gotConnection)
 
