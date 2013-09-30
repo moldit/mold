@@ -1,6 +1,7 @@
 from twisted.trial.unittest import TestCase
 from twisted.internet import reactor
 from twisted.internet.endpoints import UNIXClientEndpoint
+from twisted.python.filepath import FilePath
 
 from zope.interface.verify import verifyObject
 
@@ -25,6 +26,10 @@ class SSHConnectionMakerTest(TestCase):
 
     def test_IConnectionMaker(self):
         verifyObject(IConnectionMaker, SSHConnectionMaker())
+
+
+    def test_getConnection(self):
+        maker = SSHConnectionMaker()
 
 
 
@@ -69,3 +74,4 @@ class connectionParamsFromEnvTest(TestCase):
         self.assertTrue(isinstance(p['agentEndpoint'], UNIXClientEndpoint))
         self.assertEqual(p['agentEndpoint']._reactor, reactor)
         self.assertEqual(p['agentEndpoint']._path, '/tmp/foo')
+
