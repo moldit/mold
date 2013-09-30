@@ -1,10 +1,16 @@
 from twisted.internet.protocol import Protocol, Factory
 from twisted.conch.endpoints import SSHCommandClientEndpoint
 from twisted.conch.ssh.keys import EncryptedKeyError, Key
-from twisted.internet import defer, stdio
+from twisted.internet import defer, stdio, endpoints
 from twisted.protocols import basic
 from twisted.internet.task import react
 from twisted.python import log
+
+from zope.interface import implements
+
+from mold.interface import IConnection, IConnectionMaker
+
+from urlparse import urlparse
 
 import getpass
 import os
@@ -62,6 +68,54 @@ def main(reactor):
         #return stdio_proto.finished
 
     return d.addCallback(gotConnection)
+
+
+def parseURI(uri):
+    """
+    Convert a URI string into a dictionary of parts.
+    """
+    parsed = urlparse(uri)
+    return {
+        'username': parsed.username,
+        'hostname': parsed.hostname,
+        'port': parsed.port,
+    }
+
+
+def connectionParamsFromEnv(env, reactor):
+    """
+    XXX
+    """
+    agentEndpoint = None
+    if 'SSH_AUTH_SOCK' in env:
+        agentEndpoint = endpoints.UNIXClientEndpoint(reactor,
+                                                     env['SSH_AUTH_SOCK'])
+    
+    return {
+        'username': getpass.getuser(),
+        'port': 22,
+        'agentEndpoint': agentEndpoint,
+        'knownHosts': None,
+    }
+
+
+class SSHConnection(object):
+    """
+    XXX
+    """
+
+    implements(IConnection)
+
+
+
+class SSHConnectionMaker(object):
+    """
+    XXX
+    """
+
+    implements(IConnectionMaker)
+
+
 
 if __name__ == '__main__':
     log.startLogging(sys.stdout)
