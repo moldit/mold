@@ -15,7 +15,7 @@ It really grows on you.
 
 Mold has 3 goals:
 
-1. use standards (like stdin, stdout, stderr and JSON)
+1. use standards (like stdin, stdout, stderr) and already-made wheels (bash)
 
 2. allow functions to be written in the language best suited to the problem
 
@@ -28,24 +28,6 @@ Install it:
 
     pip install https://github.com/moldit/mold/tarball/master
 
-Create a minion:
-
-    mold create-minion /tmp/minion
-
-Inspect the state of a file:
-
-    echo '{"path": "/tmp/minion"}' | /tmp/minion/resources/file inspect
-
-And see the state of the resource:
-
-    {"kind": "file", "group": "wheel", "ctime": 1351889197, "exists": true, "perms": "0557", "filetype": "dir", "mtime": 1351889197, "owner": "moldit", "path": "/tmp/minion", "atime": 1351896286}
-
-
-# Running the tests #
-
-After getting the code (see above):
-
-    trial mold
 
 # Building the docs #
 
@@ -58,7 +40,5 @@ Build the docs
 
     cd docs && make html
 
-
-The Mold Standard is separately maintained in the [moldspec project](https://github.com/iffy/moldspec).
 
 
