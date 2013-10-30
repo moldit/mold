@@ -1,5 +1,6 @@
 from twisted.internet.protocol import ProcessProtocol, Protocol, Factory
 from twisted.conch.endpoints import SSHCommandClientEndpoint
+from twisted.conch.client.knownhosts import KnownHostsFile, ConsoleUI
 from twisted.internet import defer, reactor
 
 from zope.interface import implements
@@ -14,7 +15,7 @@ import pipes
 
 
 
-class PasswordRequired(Error):
+class AuthenticationLacking(Error):
     pass
 
 
@@ -152,21 +153,47 @@ class _PersistentProtocol(Protocol):
 
 class SSHConnectionMaker(object):
     """
-    XXX
+    I make L{SSHConnection}s from URIs.
     """
 
     implements(IConnectionMaker)
 
 
+    def __init__(self, askForPassword=None):
+        """
+        @param askForPassword: Either C{None} if passwords can't be asked for,
+            or else a function that takes a string prompt and returns a
+            (potentially deferred) password.
+        """
+        self.askForPassword = askForPassword
+
+
     def getConnection(self, uri):
         parsed = parseURI(uri)
+        if parsed['password'] is None:
+            if self.askForPassword:
+                d = defer.maybeDeferred(self.askForPassword, 'Password?\n')
+                return d.addCallback(self._gotPassword, parsed)
+            else:
+                return defer.fail(AuthenticationLacking(
+                        "You must supply either a password or an identity."))
+        return self._connect(parsed)
+
+
+    def _gotPassword(self, password, kwargs):
+        kwargs = kwargs.copy()
+        kwargs['password'] = password
+        return self._connect(kwargs)
+
+
+    def _connect(self, params):
         ep = SSHCommandClientEndpoint.newConnection(
                 reactor,
                 b'/bin/cat',
-                parsed['username'],
-                parsed['hostname'],
-                port=parsed['port'],
-                password=parsed['password'],
+                params['username'],
+                params['hostname'],
+                port=params['port'],
+                password=params['password'],
                 agentEndpoint=None,
                 knownHosts=None)
         factory = Factory()
