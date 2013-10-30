@@ -6,3 +6,7 @@ source =
 [report]
 omit =
     */test/*
+
+exclude_lines =
+    # pragma: no cover
+    .*\(Interface\):.*

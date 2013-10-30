@@ -20,3 +20,7 @@ test:
 	coverage run $$(which trial) mold
 	pyflakes mold
 	coverage report --fail-under 100
+
+coverage:
+	-coverage run $$(which trial) mold
+	coverage report --fail-under 100
