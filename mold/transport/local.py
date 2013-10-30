@@ -2,10 +2,8 @@ from zope.interface import implements
 from mold.interface import IConnection
 
 import shlex
-import re
 
-from twisted.internet import reactor, defer
-from twisted.internet.protocol import ProcessProtocol
+from twisted.internet import reactor
 from twisted.protocols.ftp import FileConsumer
 
 

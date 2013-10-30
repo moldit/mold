@@ -1,6 +1,6 @@
 # Makefile for mold
 
-.PHONY: help predoc clean
+.PHONY: help predoc clean test
 
 help:
 	cat Makefile
@@ -15,3 +15,8 @@ clean:
 
 predoc:
 	python extract_schema.py
+
+test:
+	coverage run $$(which trial) mold
+	pyflakes mold
+	coverage report --fail-under 100

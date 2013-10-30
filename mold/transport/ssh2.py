@@ -7,7 +7,7 @@ from twisted.internet.task import react
 from twisted.python import log
 
 import getpass
-import os
+from os import linesep as delimiter
 import sys
 
 
@@ -35,7 +35,7 @@ class MyProtocol(Protocol):
 
 
     def dataReceived(self, data):
-        print data
+        print 'data:%r' % (data,)
 
 
     def connectionLost(self, reason):
@@ -45,11 +45,12 @@ class MyProtocol(Protocol):
 
 class StdinProto(basic.LineReceiver):
 
-    from os import linesep as delimiter
+    delimiter = delimiter
 
 
     def __init__(self, ssh_conn):
         self.ssh_conn = ssh_conn
+        self.current_proto = None
 
     def connectionMade(self):
         self.finished = defer.Deferred()
@@ -57,13 +58,43 @@ class StdinProto(basic.LineReceiver):
 
     def lineReceived(self, line):
         #self.sendLine('Executing ' + line)
+        if self.current_proto:
+            self.writeToCurrentProto(line)
+        else:
+            self.executeNewCommand(line)
 
+
+    def writeToCurrentProto(self, line):
+        data = line + self.delimiter
+        print 'write:%r' % (line,)
+        if line == 'EOF':
+            print self.current_proto.transport
+            print self.current_proto.transport.conn.channelsToRemoteChannel
+            self.current_proto.transport.conn.sendEOF(self.current_proto.transport)
+            #self.current_proto.transport.loseConnection()
+        else:
+            self.current_proto.transport.write(data)
+
+
+    def executeNewCommand(self, line):
         factory = Factory()
         factory.protocol = MyProtocol
 
         e = SSHCommandClientEndpoint.existingConnection(self.ssh_conn,
                                                         line.strip())
-        e.connect(factory)
+        d = e.connect(factory)
+        d.addCallback(self.protoStarted)
+
+
+    def protoStarted(self, proto):
+        self.current_proto = proto
+        print dir(proto.transport)
+        print dir(proto.transport.conn)
+        proto.finished.addBoth(self.protoDone)
+
+
+    def protoDone(self, ignore):
+        self.current_proto = None
 
 
     def connectionLost(self, reason):

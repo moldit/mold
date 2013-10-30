@@ -7,7 +7,7 @@ from twisted.python import log
 from twisted.web.client import FileBodyProducer
 
 from StringIO import StringIO
-from mock import MagicMock
+
 
 
 class SimpleProtocol(protocol.ProcessProtocol):
@@ -101,7 +101,7 @@ class FunctionalConnectionTestMixin(object):
         value = 'foobar\x00\x01Hey'
         contents = StringIO(value)
         producer = FileBodyProducer(contents)
-        d = yield connection.copyFile(tmpfilename, producer)
+        yield connection.copyFile(tmpfilename, producer)
 
         # make sure it made it
         expected = ''.join(('0'+hex(ord(c))[2:])[-2:] for c in value) + '\n'

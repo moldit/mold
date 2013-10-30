@@ -1,0 +1,8 @@
+[run]
+branch = true
+source =
+    mold
+
+[report]
+omit =
+    */test/*

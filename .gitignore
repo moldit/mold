@@ -6,3 +6,4 @@ dist/
 MANIFEST
 *~
 twisted/plugins/dropin.cache
+.coverage

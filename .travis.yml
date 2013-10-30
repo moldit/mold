@@ -7,7 +7,7 @@ python:
 #  - "pypy"
 
 install:
+  - pip install Twisted jsonschema Jinja2 pyOpenSSL mock coverage pyflakes --use-mirrors
   - python setup.py install
-  - pip install Twisted jsonschema Jinja2 pyOpenSSL mock --use-mirrors
 
-script: trial mold
+script: make test

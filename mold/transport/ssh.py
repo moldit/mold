@@ -1,8 +1,7 @@
 from twisted.internet.protocol import Protocol, Factory
 from twisted.conch.endpoints import SSHCommandClientEndpoint
 from twisted.conch.ssh.keys import EncryptedKeyError, Key
-from twisted.internet import defer, stdio, endpoints
-from twisted.protocols import basic
+from twisted.internet import defer, endpoints
 from twisted.internet.task import react
 from twisted.python import log
 
