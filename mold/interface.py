@@ -16,6 +16,17 @@ class IConnection(Interface):
         """
 
 
+    def copyFile(path, producer):
+        """
+        Send a file to the other side. 
+
+        @param path: Absolute path name
+        @param producer: An L{IPushProducer} such as
+            C{twisted.web.client.FileBodyProducer}.
+        """
+
+
+
 
 class IConnectionMaker(Interface):
 
