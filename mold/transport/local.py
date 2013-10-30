@@ -10,8 +10,6 @@ from twisted.protocols.ftp import FileConsumer
 
 
 
-
-
 class LocalConnection(object):
     """
     XXX
