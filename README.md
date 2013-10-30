@@ -19,7 +19,11 @@ Mold has 3 goals:
 
 2. allow functions to be written in the language best suited to the problem
 
-3. stay out of the way (e.g. provide all raw logging information)
+3. stay out of the way (e.g. provide ALL raw logging information)
+
+4. local should be easy to run
+
+5. smallest code-print possible (forego features)
 
 
 # Quickstart #
