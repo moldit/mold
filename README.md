@@ -13,17 +13,21 @@ It really grows on you.
 ``mold`` is yet another configuration management tool.
 
 
-Mold has 3 goals:
+Mold goals:
 
 1. use standards (like stdin, stdout, stderr) and already-made wheels (bash)
 
 2. allow functions to be written in the language best suited to the problem
 
-3. stay out of the way (e.g. provide ALL raw logging information)
+3. stay out of the way (e.g. provide raw logging information)
 
 4. local should be easy to run
 
 5. smallest code-print possible (forego features)
+
+6. control-C should stop the process always
+
+7. be verbose by default (hide verbosity in logs if you must)
 
 
 # Quickstart #
