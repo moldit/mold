@@ -2,6 +2,11 @@
 
 .PHONY: help predoc clean test
 
+test:
+	coverage run $$(which trial) mold
+	pyflakes mold
+	coverage report --fail-under 100
+
 help:
 	cat Makefile
 
@@ -15,11 +20,6 @@ clean:
 
 predoc:
 	python extract_schema.py
-
-test:
-	coverage run $$(which trial) mold
-	pyflakes mold
-	coverage report --fail-under 100
 
 coverage:
 	-coverage run $$(which trial) mold

@@ -38,12 +38,19 @@ class SimpleProtocol(protocol.ProcessProtocol):
 
 class FunctionalConnectionTestMixin(object):
 
-    timeout = 2
+    timeout = 1
 
 
     def getConnection(self):
         raise NotImplementedError("You must implement getConnection in order "
                                   "to use the FunctionalConnectionTestMixin.")
+
+
+    @defer.inlineCallbacks
+    def _getConnection(self):
+        conn = yield self.getConnection()
+        self.addCleanup(conn.close)
+        defer.returnValue(conn)
 
 
     @defer.inlineCallbacks
@@ -60,7 +67,7 @@ class FunctionalConnectionTestMixin(object):
         """
         Assert that the output of the command is as expected.
         """
-        connection = yield self.getConnection()
+        connection = yield self._getConnection()
         output = yield self.outputOf(connection, command, stdin)
         self.assertEqual(output, expected,
                          "Expected output of\n%s\n\n"
@@ -91,7 +98,7 @@ class FunctionalConnectionTestMixin(object):
         """
         You should be able to copy a file onto the machine
         """
-        connection = yield self.getConnection()
+        connection = yield self._getConnection()
 
         # get a temporary filename
         tmpfilename = yield self.outputOf(connection,

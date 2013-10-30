@@ -3,7 +3,7 @@ from mold.interface import IConnection
 
 import shlex
 
-from twisted.internet import reactor
+from twisted.internet import reactor, defer
 from twisted.protocols.ftp import FileConsumer
 
 
@@ -14,6 +14,10 @@ class LocalConnection(object):
     """
 
     implements(IConnection)
+
+
+    def close(self):
+        return defer.succeed(None)
 
 
     def spawnProcess(self, protocol, command):

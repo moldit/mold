@@ -1,72 +1,15 @@
-from twisted.internet.protocol import Protocol, Factory
+from twisted.internet.protocol import ProcessProtocol, Protocol, Factory
 from twisted.conch.endpoints import SSHCommandClientEndpoint
-from twisted.conch.ssh.keys import EncryptedKeyError, Key
-from twisted.internet import defer, endpoints
-from twisted.internet.task import react
-from twisted.python import log
+from twisted.internet import defer, reactor
 
 from zope.interface import implements
 
 from mold.interface import IConnection, IConnectionMaker
 
 from urlparse import urlparse
-
-import getpass
-import os
-import sys
+from urllib import unquote_plus as unquote
 
 
-def readKey(path):
-    try:
-        return Key.fromFile(path)
-    except EncryptedKeyError:
-        passphrase = getpass.getpass("%r keyphrase: " % (path,))
-        return Key.fromFile(path, passphrase=passphrase)
-
-
-class MyProtocol(Protocol):
-
-
-    def connectionMade(self):
-        self.finished = defer.Deferred()
-
-
-    def dataReceived(self, data):
-        print 'data received: %r' % (data,)
-
-
-    def connectionLost(self, reason):
-        self.finished.callback(None)
-
-
-
-def main(reactor):
-    keys = []
-    identity = '/home/matt/.ssh/id_dsa'
-    keyPath = os.path.expanduser(identity)
-    if os.path.exists(keyPath):
-        keys.append(readKey(keyPath))
-
-    ep = SSHCommandClientEndpoint.newConnection(
-        reactor, b'/bin/cat', 'dev', '10.1.15.7',
-        port=22, keys=keys, agentEndpoint=None, knownHosts=None)
-    factory = Factory()
-    factory.protocol = MyProtocol
-
-    d = ep.connect(factory)
-
-
-    def gotConnection(proto):
-        conn = proto.transport.conn
-
-        factory = Factory()
-        factory.protocol = MyProtocol
-
-        e = SSHCommandClientEndpoint.existingConnection(conn, b"/bin/ls -al")
-        return e.connect(factory).addCallback(lambda proto: proto.finished)
-        #return stdio_proto.finished
-
-    return d.addCallback(gotConnection)
 
 
 def parseURI(uri):
@@ -75,27 +18,67 @@ def parseURI(uri):
     """
     parsed = urlparse(uri)
     return {
-        'username': parsed.username,
-        'hostname': parsed.hostname,
-        'port': parsed.port,
+        'username': unquote(parsed.username),
+        'hostname': unquote(parsed.hostname),
+        'port': parsed.port or 22,
+        'password': unquote(parsed.password or ''),
     }
 
 
-def connectionParamsFromEnv(env, reactor):
+
+class _CommandProtocol(Protocol):
+
+    output_childFD = 1
+
+
+    def __init__(self, process_protocol):
+        self.done = defer.Deferred()
+        self.process_protocol = process_protocol
+
+
+    def connectionMade(self):
+        self.process_protocol.makeConnection(self)
+
+
+    def connectionLost(self, reason):
+        self.process_protocol.processEnded(reason)
+        self.done.callback(self)
+
+
+    def dataReceived(self, data):
+        self.process_protocol.childDataReceived(self.output_childFD, data)
+
+
+    # ITransport
+
+    def write(self, data):
+        self.transport.write(data)
+
+
+    def closeStdin(self):
+        self.transport.conn.sendEOF(self.transport)
+
+
+class _StdinConsumer(ProcessProtocol):
     """
-    XXX
+    I write a file to stdin from a producer.
     """
-    agentEndpoint = None
-    if 'SSH_AUTH_SOCK' in env:
-        agentEndpoint = endpoints.UNIXClientEndpoint(reactor,
-                                                     env['SSH_AUTH_SOCK'])
-    
-    return {
-        'username': getpass.getuser(),
-        'port': 22,
-        'agentEndpoint': agentEndpoint,
-        'knownHosts': None,
-    }
+
+    def __init__(self, producer):
+        self.producer = producer
+
+    def connectionMade(self):
+        d = self.producer.startProducing(self)
+        d.addCallback(self._doneProducing)
+
+
+    def write(self, data):
+        self.transport.write(data)
+
+
+    def _doneProducing(self, _):
+        self.transport.closeStdin()
+
 
 
 class SSHConnection(object):
@@ -104,6 +87,56 @@ class SSHConnection(object):
     """
 
     implements(IConnection)
+
+
+    def __init__(self, master_proto):
+        """
+        @param master_proto: XXX
+        """
+        self.master_proto = master_proto
+
+
+    def close(self):
+        self.master_proto.transport.loseConnection()
+        return self.master_proto.done
+
+
+    def spawnProcess(self, protocol, command):
+        factory = Factory()
+        factory.protocol = lambda: _CommandProtocol(protocol)
+        e = SSHCommandClientEndpoint.existingConnection(
+                self.master_proto.transport.conn, command)
+        d = e.connect(factory)
+        return d.addCallback(self._commandStarted)
+
+
+    def _commandStarted(self, proto):
+        return proto.done
+
+
+    def copyFile(self, path, producer):
+        """
+        XXX
+        """
+        # XXX brutish version
+        brute = _StdinConsumer(producer)
+        return self.spawnProcess(brute, 'cat > %s' % (path,))
+
+
+
+
+
+
+class _PersistentProtocol(Protocol):
+
+
+    def __init__(self):
+        self.done = defer.Deferred()
+
+
+    def connectionLost(self, reason):
+        self.done.callback(self)
+
 
 
 
@@ -115,7 +148,23 @@ class SSHConnectionMaker(object):
     implements(IConnectionMaker)
 
 
+    def getConnection(self, uri):
+        parsed = parseURI(uri)
+        ep = SSHCommandClientEndpoint.newConnection(
+                reactor,
+                b'/bin/cat',
+                parsed['username'],
+                parsed['hostname'],
+                port=parsed['port'],
+                password=parsed['password'],
+                agentEndpoint=None,
+                knownHosts=None)
+        factory = Factory()
+        factory.protocol = _PersistentProtocol
+        return ep.connect(factory).addCallback(self._connected)
 
-if __name__ == '__main__':
-    log.startLogging(sys.stdout)
-    react(main)
+
+    def _connected(self, proto):
+        return SSHConnection(proto)
+
+

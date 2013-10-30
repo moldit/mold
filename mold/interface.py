@@ -5,7 +5,14 @@ class IConnection(Interface):
     """
     A connection to a machine that allows executing processes.
     """
-    
+
+
+    def close():
+        """
+        Disconnect this connection
+        """
+
+
     def spawnProcess(protocol, command):
         """
         Spawn a process on the connection.

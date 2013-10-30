@@ -1,16 +1,13 @@
 from twisted.trial.unittest import TestCase
-from twisted.internet import reactor
-from twisted.internet.endpoints import UNIXClientEndpoint
 
 from zope.interface.verify import verifyObject
 
-import getpass
 import os
 
-from mold.transport.test.mixin import FunctionalConnectionTestMixin
-
 from mold.interface import IConnection, IConnectionMaker
+from mold.transport.test.mixin import FunctionalConnectionTestMixin
 from mold.transport.ssh import SSHConnection, SSHConnectionMaker, parseURI
+
 
 _ssh_test_uri_varname = 'MOLD_TEST_SSH_URI'
 _skip_functional_test = 'Provide an SSH endpoint as %r to run this test' % (
@@ -29,7 +26,8 @@ class SSHFunctionalTest(FunctionalConnectionTestMixin, TestCase):
     
 
     def getConnection(self):
-        pass
+        maker = SSHConnectionMaker()
+        return maker.getConnection(SSH_TEST_URI)
 
 
 
@@ -37,7 +35,7 @@ class SSHConnectionTest(TestCase):
 
 
     def test_IConnection(self):
-        verifyObject(IConnection, SSHConnection())
+        verifyObject(IConnection, SSHConnection(None))
 
 
 
@@ -46,7 +44,6 @@ class SSHConnectionMakerTest(TestCase):
 
     def test_IConnectionMaker(self):
         verifyObject(IConnectionMaker, SSHConnectionMaker())
-
 
 
 
@@ -61,3 +58,20 @@ class parseURITest(TestCase):
         self.assertEqual(r['username'], 'joe')
         self.assertEqual(r['hostname'], '10.1.2.3')
         self.assertEqual(r['port'], 2903)
+
+
+    def test_password(self):
+        """
+        A password can be included.
+        """
+        r = parseURI('ssh://joe:foo@10.1.2.3')
+        self.assertEqual(r['password'], 'foo')
+
+
+    def test_special_chars(self):
+        """
+        Special characters should be handled
+        """
+        r = parseURI('ssh://%21:%40@10.1.2.3')
+        self.assertEqual(r['username'], '!')
+        self.assertEqual(r['password'], '@')
