@@ -5,9 +5,17 @@ from twisted.internet import defer, reactor
 from zope.interface import implements
 
 from mold.interface import IConnection, IConnectionMaker
+from mold.error import Error
 
 from urlparse import urlparse
 from urllib import unquote_plus as unquote
+
+import pipes
+
+
+
+class PasswordRequired(Error):
+    pass
 
 
 
@@ -16,11 +24,14 @@ def parseURI(uri):
     Convert a URI string into a dictionary of parts.
     """
     parsed = urlparse(uri)
+    password = parsed.password
+    if password is not None:
+        password = unquote(password)
     return {
         'username': unquote(parsed.username),
         'hostname': unquote(parsed.hostname),
         'port': parsed.port or 22,
-        'password': unquote(parsed.password or ''),
+        'password': password,
     }
 
 
@@ -119,7 +130,7 @@ class SSHConnection(object):
         """
         # XXX brutish version
         brute = _StdinConsumer(producer)
-        return self.spawnProcess(brute, 'cat > %s' % (path,))
+        return self.spawnProcess(brute, 'cat > %s' % (pipes.quote(path),))
 
 
 

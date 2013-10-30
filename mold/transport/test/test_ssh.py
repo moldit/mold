@@ -19,7 +19,7 @@ if SSH_TEST_URI:
 
 
 
-class SSHFunctionalTest(FunctionalConnectionTestMixin, TestCase):
+class SSHFunctionalFromMixinTest(FunctionalConnectionTestMixin, TestCase):
 
 
     skip = _skip_functional_test
@@ -28,7 +28,6 @@ class SSHFunctionalTest(FunctionalConnectionTestMixin, TestCase):
     def getConnection(self):
         maker = SSHConnectionMaker()
         return maker.getConnection(SSH_TEST_URI)
-
 
 
 class SSHConnectionTest(TestCase):
@@ -57,6 +56,7 @@ class parseURITest(TestCase):
         r = parseURI('ssh://joe@10.1.2.3:2903')
         self.assertEqual(r['username'], 'joe')
         self.assertEqual(r['hostname'], '10.1.2.3')
+        self.assertEqual(r['password'], None)
         self.assertEqual(r['port'], 2903)
 
 

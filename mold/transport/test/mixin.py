@@ -6,6 +6,8 @@ from twisted.internet import defer, protocol
 from twisted.python import log
 from twisted.web.client import FileBodyProducer
 
+import os
+import pipes
 from StringIO import StringIO
 
 
@@ -113,6 +115,32 @@ class FunctionalConnectionTestMixin(object):
         # make sure it made it
         expected = ''.join(('0'+hex(ord(c))[2:])[-2:] for c in value) + '\n'
         output = yield self.outputOf(connection, 'xxd -p %s' % (tmpfilename,))
+        self.assertEqual(output, expected)
+
+
+    @defer.inlineCallbacks
+    def test_copyFile_specialChars(self):
+        """
+        If the pathname has special characters, it should still work
+        """
+        connection = yield self._getConnection()
+
+        # get a temporary filename
+        tmpdir = yield self.outputOf(connection,
+            "python -c 'import tempfile, sys; sys.stdout.write(tempfile.mkdtemp())'")
+        log.msg('tmpdir: %s' % (tmpdir,))
+        tmpfile = os.path.join(tmpdir, "andy's frozen - treats")
+
+        # copy it
+        value = 'foobarHey'
+        contents = StringIO(value)
+        producer = FileBodyProducer(contents)
+        yield connection.copyFile(tmpfile, producer)
+
+        # make sure it made it
+        expected = 'foobarHey'
+        output = yield self.outputOf(connection, 'cat %s' % (
+                                     pipes.quote(tmpfile),))
         self.assertEqual(output, expected)
 
 
