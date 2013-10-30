@@ -29,6 +29,8 @@ Mold goals:
 
 7. be verbose by default (hide verbosity in logs if you must)
 
+8. telling > asking http://iffycan.blogspot.com/2013/10/tell-don-ask.html
+
 
 # Quickstart #
 
