@@ -2,6 +2,11 @@
 
 .PHONY: help predoc clean test
 
+test-sans-coverage:
+	coverage run $$(which trial) mold
+	pyflakes mold
+	coverage report
+
 test:
 	coverage run $$(which trial) mold
 	pyflakes mold

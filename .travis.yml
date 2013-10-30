@@ -11,4 +11,4 @@ install:
   - pip install -r test-requirements.txt --use-mirrors
   - python setup.py install
 
-script: make test
+script: make test-sans-coverage

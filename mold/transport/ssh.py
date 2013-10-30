@@ -11,7 +11,6 @@ from urllib import unquote_plus as unquote
 
 
 
-
 def parseURI(uri):
     """
     Convert a URI string into a dictionary of parts.
