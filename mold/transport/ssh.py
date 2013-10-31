@@ -1,6 +1,5 @@
 from twisted.internet.protocol import ProcessProtocol, Protocol, Factory
 from twisted.conch.endpoints import SSHCommandClientEndpoint
-from twisted.conch.client.knownhosts import KnownHostsFile, ConsoleUI
 from twisted.internet import defer, reactor
 
 from zope.interface import implements
@@ -19,21 +18,10 @@ class AuthenticationLacking(Error):
     pass
 
 
-
-def parseURI(uri):
-    """
-    Convert a URI string into a dictionary of parts.
-    """
-    parsed = urlparse(uri)
-    password = parsed.password
-    if password is not None:
-        password = unquote(password)
-    return {
-        'username': unquote(parsed.username),
-        'hostname': unquote(parsed.hostname),
-        'port': parsed.port or 22,
-        'password': password,
-    }
+def _unquote(value):
+    if value is None:
+        return value
+    return unquote(value)
 
 
 
@@ -168,16 +156,34 @@ class SSHConnectionMaker(object):
         self.askForPassword = askForPassword
 
 
+    def readURI(self, uri):
+        """
+        Transform a connection URI into a dictionary suitable as kwargs to
+        L{SSHCommandClientEndpoint.newConnection}.
+        """
+        parsed = urlparse(uri)
+        return {
+            'username': _unquote(parsed.username),
+            'hostname': parsed.hostname,
+            'port': parsed.port or 22,
+            'keys': None,
+            'password': _unquote(parsed.password),
+            'agentEndpoint': None,
+            'knownHosts': None,
+            'ui': None,
+        }
+
+
     def getConnection(self, uri):
-        parsed = parseURI(uri)
-        if parsed['password'] is None:
+        connargs = self.readURI(uri)
+        if connargs['password'] is None:
             if self.askForPassword:
                 d = defer.maybeDeferred(self.askForPassword, 'Password?\n')
-                return d.addCallback(self._gotPassword, parsed)
+                return d.addCallback(self._gotPassword, connargs)
             else:
                 return defer.fail(AuthenticationLacking(
                         "You must supply either a password or an identity."))
-        return self._connect(parsed)
+        return self._connect(connargs)
 
 
     def _gotPassword(self, password, kwargs):

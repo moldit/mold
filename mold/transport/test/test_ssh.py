@@ -1,4 +1,4 @@
-from twisted.trial.unittest import TestCase, SkipTest
+from twisted.trial.unittest import TestCase
 from twisted.internet import defer
 
 from zope.interface.verify import verifyObject
@@ -9,7 +9,7 @@ import os
 
 from mold.interface import IConnection, IConnectionMaker
 from mold.transport.test.mixin import FunctionalConnectionTestMixin
-from mold.transport.ssh import SSHConnection, SSHConnectionMaker, parseURI
+from mold.transport.ssh import SSHConnection, SSHConnectionMaker
 from mold.transport.ssh import AuthenticationLacking
 
 
@@ -86,33 +86,29 @@ class SSHConnectionMakerTest(TestCase):
         self.assertEqual(result, 'res')
 
 
-
-class parseURITest(TestCase):
-
-
-    def test_basic(self):
+    def test_readURI(self):
         """
-        A basic SSH URI should be parseable into a dictionary of things.
+        readURI should return a dict suitable for newConnection kwargs.
         """
-        r = parseURI('ssh://joe@10.1.2.3:2903')
-        self.assertEqual(r['username'], 'joe')
-        self.assertEqual(r['hostname'], '10.1.2.3')
-        self.assertEqual(r['password'], None)
-        self.assertEqual(r['port'], 2903)
+        maker = SSHConnectionMaker()
+        parsed = maker.readURI('ssh://foo@127.0.0.1')
+        self.assertEqual(parsed['username'], 'foo')
+        self.assertEqual(parsed['hostname'], '127.0.0.1')
+        self.assertEqual(parsed['port'], 22)
+        self.assertEqual(parsed['keys'], None)
+        self.assertEqual(parsed['password'], None)
+        self.assertEqual(parsed['agentEndpoint'], None)
+        self.assertEqual(parsed['knownHosts'], None)
+        self.assertEqual(parsed['ui'], None)
 
 
-    def test_password(self):
+    def test_readURI_specialChars(self):
         """
-        A password can be included.
+        readURI should handle url-encoded characters.
         """
-        r = parseURI('ssh://joe:foo@10.1.2.3')
-        self.assertEqual(r['password'], 'foo')
+        maker = SSHConnectionMaker()
+        parsed = maker.readURI('ssh://%21:%40@127.0.0.1')
+        self.assertEqual(parsed['username'], '!')
+        self.assertEqual(parsed['password'], '@')
 
 
-    def test_special_chars(self):
-        """
-        Special characters should be handled
-        """
-        r = parseURI('ssh://%21:%40@10.1.2.3')
-        self.assertEqual(r['username'], '!')
-        self.assertEqual(r['password'], '@')
