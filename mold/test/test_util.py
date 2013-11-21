@@ -1,7 +1,8 @@
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 from twisted.python import log
-from twisted.internet import utils, defer
+from twisted.internet import utils, defer, reactor
+from twisted.internet.protocol import ProcessProtocol
 
 
 from mold.util import script_root
@@ -133,6 +134,54 @@ class fdplexMixin(object):
         out, err, rc, data = yield self.runProcess(fdplex, [child.path])
         
         self.assertEqual(data['fd2'], 'foo\n', "Should capture stderr")
+
+
+    @defer.inlineCallbacks
+    def test_terminal(self):
+        """
+        Input asked of the terminal should come out stderr.
+        """
+        fdplex = yield self.runnableScript()
+
+        class Proto(ProcessProtocol):
+
+            def __init__(self, input_responses=[]):
+                """
+                @param input_responses: A list of strings to be
+                    written in response to data being received.
+                """
+                self.data = {
+                    1: '',
+                    2: '',
+                }
+                self.input_responses = input_responses
+                self.done = defer.Deferred()
+
+            def childDataReceived(self, childFd, data):
+                self.data[childFd] += data
+                if self.input_responses:
+                    input_data = self.input_responses.pop(0)
+                    self.transport.write(input_data)
+
+            def processEnded(self, reason):
+                print dir(reason)
+                self.done.callback(reason.value)
+
+
+        child = FilePath(self.mktemp())
+        child.setContent(
+            '#!/usr/bin/env python\n'
+            'import getpass\n'
+            'value = getpass.getpass("password?")\n'
+            'print value\n'
+        )
+
+        proto = Proto(['joe'])
+        reactor.spawnProcess(proto, fdplex, [fdplex, child], usePty=True)
+
+        result = yield proto.done
+        self.fail('writ me')
+
 
 
 
