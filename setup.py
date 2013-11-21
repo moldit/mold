@@ -1,4 +1,4 @@
-from distutils.core import setup
+from setuptools import setup
 
 setup(
     url='https://github.com/iffy/mold',
@@ -10,6 +10,11 @@ setup(
         'mold', 'mold.test',
         'twisted.plugins',
     ],
+    package_data={
+        'mold': [
+            'util_scripts/*',
+        ],
+    },
     scripts=[
         'bin/mold',
     ],

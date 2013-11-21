@@ -29,3 +29,5 @@ predoc:
 coverage:
 	-coverage run $$(which trial) mold
 	coverage report --fail-under 100
+
+
