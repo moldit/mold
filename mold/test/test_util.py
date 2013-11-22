@@ -139,7 +139,7 @@ class fdplexMixin(object):
     @defer.inlineCallbacks
     def test_terminal(self):
         """
-        Input asked of the terminal should come out stderr.
+        Input asked of the terminal should come out stdout.
         """
         fdplex = yield self.runnableScript()
 
@@ -158,10 +158,15 @@ class fdplexMixin(object):
                 self.done = defer.Deferred()
 
             def childDataReceived(self, childFd, data):
+                log.msg('childDataReceived: %r %r' % (childFd, data))
                 self.data[childFd] += data
                 if self.input_responses:
                     input_data = self.input_responses.pop(0)
+                    log.msg('writing: %r' % (input_data,))
                     self.transport.write(input_data)
+                    if not self.input_responses:
+                        log.msg('closing stdin')
+                        self.transport.closeStdin()
 
             def processEnded(self, reason):
                 print dir(reason)
@@ -176,14 +181,14 @@ class fdplexMixin(object):
             'print value\n'
         )
 
-        proto = Proto(['joe'])
-        reactor.spawnProcess(proto, fdplex, [fdplex, child], usePty=True)
+        proto = Proto(['joe\n'])
+        reactor.spawnProcess(proto, fdplex, [fdplex, child.path], usePTY=True)
 
         result = yield proto.done
-        self.fail('writ me')
+        data = self.parseStream(proto.data[1])
 
-
-
+        self.assertEqual(data['rc'], 0, "Should succeed")
+        self.assertEqual(data['fd1'], 'password?joe\n')
 
 
 
