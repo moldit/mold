@@ -56,3 +56,12 @@ class IPasswordManager(Interface):
         """
         Given a connection URI, get the password needed to connect.
         """
+
+
+class ITrigger(Interface):
+
+
+    def childDataReceived(proto, childFD, data):
+        """
+        Receive some data from a file descriptor.
+        """
