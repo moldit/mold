@@ -28,6 +28,7 @@ def _unquote(value):
 class _CommandProtocol(Protocol):
 
     output_childFD = 1
+    err_childFD = 2
 
 
     def __init__(self, process_protocol):
@@ -37,6 +38,12 @@ class _CommandProtocol(Protocol):
 
     def connectionMade(self):
         self.process_protocol.makeConnection(self)
+        
+        # ---------------------------------------------------------------------
+        # XXX terrible monkey patch
+        self.transport.extReceived = self.extReceived
+        # XXX FIX THIS TERRIBLE MONKEY PATCH
+        # ---------------------------------------------------------------------
 
 
     def connectionLost(self, reason):
@@ -46,6 +53,9 @@ class _CommandProtocol(Protocol):
 
     def dataReceived(self, data):
         self.process_protocol.childDataReceived(self.output_childFD, data)
+
+    def extReceived(self, dataType, data):
+        self.process_protocol.childDataReceived(self.err_childFD, data)
 
 
     # ITransport

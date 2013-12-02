@@ -1,5 +1,6 @@
 from twisted.internet.protocol import ProcessProtocol
 from twisted.internet import defer, error
+from twisted.python import log
 from zope.interface import implements
 
 from mold.interface import ITrigger
@@ -123,6 +124,7 @@ class AnyString(object):
 
 
     def childDataReceived(self, proto, childFD, data):
+        log.msg(repr(data), system='AnyString')
         self.buffer += data
         for string in self.strings:
             if string in self.buffer:

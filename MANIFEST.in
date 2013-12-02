@@ -2,4 +2,4 @@ include README.md
 include Makefile
 recursive-include mold/templates *
 include twisted/plugins/*.py
-recursive-include functionaltests *
+recursive-include functest *

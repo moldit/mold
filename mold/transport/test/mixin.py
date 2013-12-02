@@ -71,24 +71,25 @@ class FunctionalConnectionTestMixin(object):
 
 
     @defer.inlineCallbacks
-    def assertOutput(self, command, expected, stdin=None):
+    def assertOutput(self, command, expected_lines, stdin=None):
         """
         Assert that the output of the command is as expected.
         """
         connection = yield self._getConnection()
         output = yield self.outputOf(connection, command, stdin)
-        self.assertEqual(output, expected,
+        for line in expected_lines:
+            self.assertIn(line, output,
                          "Expected output of\n%s\n\n"
                          "with stdin:\n%r\n\n"
-                         "to be:\n%r\n\n"
-                         "not:\n%r" % (command, stdin, expected, output))
+                         "to contain:\n%r\n\n"
+                         "but it doesn't:\n%r" % (command, stdin, line, output))
 
 
     def test_echo(self):
         """
         You should be able to run echo and get stdout output.
         """
-        return self.assertOutput('echo foo', 'foo\r\n')
+        return self.assertOutput('echo foo', ['foo'])
 
 
     def test_stdin(self):
@@ -98,7 +99,7 @@ class FunctionalConnectionTestMixin(object):
         return self.assertOutput(
             "/bin/bash -c 'while read line; do echo $line; done'",
             # XXX this assertion is terrible
-            "foo\r\n^D\x08\x08foo\r\n",
+            ["foo"],
             stdin="foo\n")
 
 
@@ -120,9 +121,9 @@ class FunctionalConnectionTestMixin(object):
         yield connection.copyFile(tmpfilename, producer)
 
         # make sure it made it
-        expected = ''.join(('0'+hex(ord(c))[2:])[-2:] for c in value) + '\r\n'
+        expected = ''.join(('0'+hex(ord(c))[2:])[-2:] for c in value)
         output = yield self.outputOf(connection, 'xxd -p %s' % (tmpfilename,))
-        self.assertEqual(output, expected)
+        self.assertIn(expected, output)
 
 
     @defer.inlineCallbacks
@@ -171,4 +172,5 @@ class FunctionalConnectionTestMixin(object):
         )
 
         yield proto.done
-        self.assertEqual(''.join(output), 'password?\r\nanswer')
+        self.assertIn('password?', ''.join(output))
+        self.assertIn('answer', ''.join(output))
