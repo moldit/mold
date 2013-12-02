@@ -1,4 +1,5 @@
 from twisted.internet.protocol import ProcessProtocol
+from twisted.internet import defer, error
 from zope.interface import implements
 
 from mold.interface import ITrigger
@@ -25,19 +26,28 @@ def tee(funcs):
 class SimpleProtocol(ProcessProtocol):
     """
     XXX
+
+    @ivar done: A callback that will be called back with a ProcessDone instance
+        or else errback with a ProcessTerminated instance.
     """
 
-    def __init__(self, catchall, outputReceivers=None):
+    _stdin_closed = False
+
+    def __init__(self, catchall, outputReceivers=None, triggers=None):
         """
         @param catchall: A function to be called with output not sent to
             one of C{outputReceivers}.
         @param outputReceivers: A dictionary of file descriptor numbers
             to functions that will be called with each piece of data received
             on that file descriptor.
+        @param triggers: A list of triggers.  See L{addTrigger} for more
+            information.
         """
+        self.done = defer.Deferred()
+
         self.catchall = catchall
         self.outputReceivers = outputReceivers or {}
-        self._triggers = []
+        self._triggers = triggers or []
 
 
     def childDataReceived(self, childFD, data):
@@ -49,8 +59,10 @@ class SimpleProtocol(ProcessProtocol):
             except TriggerDone:
                 self.removeTrigger(trigger)
         
-        if not self._triggers:
+        if not self._triggers and not self._stdin_closed:
+            self.transport.write('\x04')
             self.transport.closeStdin()
+            self._stdin_closed = True
 
 
     def addTrigger(self, trigger):
@@ -66,6 +78,13 @@ class SimpleProtocol(ProcessProtocol):
         Remove a L{ITrigger} from receiving output.
         """
         self._triggers.remove(trigger)
+
+
+    def processEnded(self, status):
+        if isinstance(status.value, error.ProcessTerminated):
+            self.done.errback(status.value)
+        else:
+            self.done.callback(status.value)
 
 
 

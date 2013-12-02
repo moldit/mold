@@ -1,4 +1,6 @@
 from twisted.trial.unittest import TestCase
+from twisted.internet.error import ProcessTerminated
+from twisted.internet import defer, reactor
 
 from zope.interface.verify import verifyObject
 
@@ -109,6 +111,7 @@ class TriggerInputTest(TestCase):
 
 class SimpleProtocolTest(TestCase):
 
+    timeout = 2
 
     def test_streamOutput(self):
         """
@@ -144,6 +147,15 @@ class SimpleProtocolTest(TestCase):
         proto.childDataReceived(1, 'some stdout')
         proto.childDataReceived(2, 'some stderr')
         self.assertEqual(data, ['some stdout', 'some stderr'])
+
+
+    def test_init_withTriggers(self):
+        """
+        You can supply a list of triggers on init.
+        """
+        trigger = MagicMock()
+        proto = SimpleProtocol(lambda x: None, triggers=[trigger])
+        self.assertEqual(proto._triggers, [trigger])
 
 
     def test_addTrigger(self):
@@ -207,3 +219,78 @@ class SimpleProtocolTest(TestCase):
         proto.transport = MagicMock()
         proto.childDataReceived(1, 'foo')
         proto.transport.closeStdin.assert_called_once_with()
+
+
+    def test_onlyCloseOnce(self):
+        """
+        If data is received after stdin is closed, don't keep closing it.
+        """
+        proto = SimpleProtocol(lambda x: None)
+        proto.transport = MagicMock()
+        proto.childDataReceived(1, 'foo')
+        proto.transport.closeStdin.assert_called_once_with()
+        proto.childDataReceived(1, 'foo')
+        proto.transport.closeStdin.assert_called_once_with()
+
+
+    def test_done(self):
+        """
+        The done callback should be called when the process is ended
+        """
+        proto = SimpleProtocol(lambda x: None)
+        status = MagicMock()
+        status.value = MagicMock()
+        status.value.exitCode = 0
+        proto.processEnded(status)
+        self.assertEqual(self.successResultOf(proto.done), status.value)
+
+
+    def test_done_error(self):
+        """
+        The done deferred should errback if the process didn't exit with a
+        success code.
+        """
+        proto = SimpleProtocol(lambda x: None)
+        status = MagicMock()
+        status.value = ProcessTerminated()
+        proto.processEnded(status)
+        self.assertFailure(proto.done, ProcessTerminated)
+
+
+    @defer.inlineCallbacks
+    def test_functionalPTY(self):
+        """
+        The SimpleProtocol should be useful for spawning a PTY process.
+        """
+        output = []
+        proto = SimpleProtocol(output.append)
+        proto.addTrigger(TriggerInput('hey\r\n', AnyString(['s\r\n'])))
+
+        reactor.spawnProcess(
+            proto,
+            '/bin/bash',
+            ['/bin/bash', '-c', 'echo s; while read line; do echo $line; done'],
+            usePTY=True,
+        )
+
+        yield proto.done
+        self.assertIn('hey', ''.join(output))
+
+
+    @defer.inlineCallbacks
+    def test_functional_nonPTY(self):
+        """
+        The SimpleProtocol should be useful for spawning a normal process.
+        """
+        output = []
+        proto = SimpleProtocol(output.append)
+        proto.addTrigger(TriggerInput('hey\n', AnyString(['s\n'])))
+
+        reactor.spawnProcess(
+            proto,
+            '/bin/bash',
+            ['/bin/bash', '-c', 'echo s; while read line; do echo $line; done'],
+        )
+
+        yield proto.done
+        self.assertIn('hey', ''.join(output))

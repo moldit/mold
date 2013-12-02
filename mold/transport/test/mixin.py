@@ -10,9 +10,11 @@ import os
 import pipes
 from StringIO import StringIO
 
+from mold.transport.common import SimpleProtocol, TriggerInput, AnyString, tee
 
 
-class SimpleProtocol(protocol.ProcessProtocol):
+
+class TestProtocol(protocol.ProcessProtocol):
 
 
     def __init__(self, stdin=None):
@@ -23,9 +25,12 @@ class SimpleProtocol(protocol.ProcessProtocol):
 
     def connectionMade(self):
         if self.stdin is not None:
-            log.msg('stdin: %r' % (self.stdin,))
+            log.msg('%r' % (self.stdin,), system='stdin')
             self.transport.write(self.stdin)
+            self.transport.write('\x04')
+            log.msg('close', system='stdin')
             self.transport.closeStdin()
+
 
 
     def childDataReceived(self, childFD, data):
@@ -34,6 +39,7 @@ class SimpleProtocol(protocol.ProcessProtocol):
 
 
     def processEnded(self, reason):
+        log.msg('ended', system='process')
         self.done.callback(self)
 
 
@@ -58,7 +64,7 @@ class FunctionalConnectionTestMixin(object):
     @defer.inlineCallbacks
     def outputOf(self, connection, command, stdin=None):
         log.msg('Running: %r' % (command,))
-        proto = SimpleProtocol(stdin)
+        proto = TestProtocol(stdin)
         connection.spawnProcess(proto, command)
         yield proto.done
         defer.returnValue(proto.output.getvalue())
@@ -82,7 +88,7 @@ class FunctionalConnectionTestMixin(object):
         """
         You should be able to run echo and get stdout output.
         """
-        return self.assertOutput('echo foo', 'foo\n')
+        return self.assertOutput('echo foo', 'foo\r\n')
 
 
     def test_stdin(self):
@@ -91,7 +97,8 @@ class FunctionalConnectionTestMixin(object):
         """
         return self.assertOutput(
             "/bin/bash -c 'while read line; do echo $line; done'",
-            "foo\n",
+            # XXX this assertion is terrible
+            "foo\r\n^D\x08\x08foo\r\n",
             stdin="foo\n")
 
 
@@ -113,7 +120,7 @@ class FunctionalConnectionTestMixin(object):
         yield connection.copyFile(tmpfilename, producer)
 
         # make sure it made it
-        expected = ''.join(('0'+hex(ord(c))[2:])[-2:] for c in value) + '\n'
+        expected = ''.join(('0'+hex(ord(c))[2:])[-2:] for c in value) + '\r\n'
         output = yield self.outputOf(connection, 'xxd -p %s' % (tmpfilename,))
         self.assertEqual(output, expected)
 
@@ -144,10 +151,24 @@ class FunctionalConnectionTestMixin(object):
         self.assertEqual(output, expected)
 
 
+    @defer.inlineCallbacks
+    def test_passwordPrompt(self):
+        """
+        A password prompt should be handled well with triggers.
+        """
+        connection = yield self._getConnection()
         
+        triggers = [TriggerInput('answer\r\n', AnyString(['password?']))]
+        output = []
+        proto = SimpleProtocol(
+            lambda data: tee([log.msg(repr(data)), output.append(data)]),
+            triggers=triggers)
 
+        # ask for a password
+        connection.spawnProcess(
+            proto,
+            "python -c 'import getpass, sys; sys.stdout.write(getpass.getpass(\"password?\"))'",
+        )
 
-
-
-
-
+        yield proto.done
+        self.assertEqual(''.join(output), 'password?\r\nanswer')

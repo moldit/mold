@@ -26,7 +26,7 @@ class LocalConnection(object):
         """
         args = shlex.split(command)
         executable = args[0]
-        reactor.spawnProcess(protocol, executable, args)
+        reactor.spawnProcess(protocol, executable, args, usePTY=True)
 
 
     def copyFile(self, path, producer):
