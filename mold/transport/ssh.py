@@ -26,18 +26,13 @@ def _unquote(value):
 
 
 class EveryoneIsAKnownHostsFile(object):
+    """
+    XXX untested
+    """
 
     def verifyHostKey(self, ui, hostname, ip, key):
         return defer.succeed(True)
 
-    def hasHostKey(self, hostname, key):
-        return True
-
-    def addHostKey(self, hostname, key):
-        pass
-
-    def save(self):
-        pass
 
 
 class _CommandProtocol(Protocol):

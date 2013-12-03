@@ -2,15 +2,18 @@
 
 .PHONY: help predoc clean test
 
+test-with-coverage:
+	$(MAKE) test
+	coverage report --fail-under 100
+
 test-sans-coverage:
-	pyflakes mold
-	coverage run $$(which trial) mold
+	$(MAKE) test
 	coverage report
 
 test:
 	pyflakes mold
-	coverage run $$(which trial) mold
-	coverage report --fail-under 100
+	coverage run $$(which trial) mold functest
+	coverage combine
 
 help:
 	cat Makefile
