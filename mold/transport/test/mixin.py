@@ -8,6 +8,7 @@ from twisted.web.client import FileBodyProducer
 
 import os
 import pipes
+from hashlib import md5
 from StringIO import StringIO
 
 from mold.transport.common import SimpleProtocol, TriggerInput, AnyString, tee
@@ -120,10 +121,15 @@ class FunctionalConnectionTestMixin(object):
         producer = FileBodyProducer(contents)
         yield connection.copyFile(tmpfilename, producer)
 
-        # make sure it made it
-        expected = ''.join(('0'+hex(ord(c))[2:])[-2:] for c in value)
-        output = yield self.outputOf(connection, 'xxd -p %s' % (tmpfilename,))
-        self.assertIn(expected, output)
+        # verify the hash
+        expected_hash = md5(value).hexdigest()
+        output = yield self.outputOf(
+            connection,
+            'md5sum %s' % (tmpfilename,)
+        )
+        actual_hash = output.strip().split(' ')[0]
+
+        self.assertEqual(expected_hash, actual_hash)
 
 
     @defer.inlineCallbacks

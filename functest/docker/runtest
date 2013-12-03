@@ -1,7 +1,0 @@
-docker_bin=$(which docker)
-
-if [ -z "$docker_bin" ]; then
-    echo "You must have docker installed."
-    echo "Go to www.docker.io for how to do that."
-    exit 1
-fi

@@ -25,6 +25,21 @@ def _unquote(value):
 
 
 
+class EveryoneIsAKnownHostsFile(object):
+
+    def verifyHostKey(self, ui, hostname, ip, key):
+        return defer.succeed(True)
+
+    def hasHostKey(self, hostname, key):
+        return True
+
+    def addHostKey(self, hostname, key):
+        pass
+
+    def save(self):
+        pass
+
+
 class _CommandProtocol(Protocol):
 
     output_childFD = 1
@@ -211,7 +226,7 @@ class SSHConnectionMaker(object):
                 port=params['port'],
                 password=params['password'],
                 agentEndpoint=None,
-                knownHosts=None)
+                knownHosts=EveryoneIsAKnownHostsFile())
         factory = Factory()
         factory.protocol = _PersistentProtocol
         return ep.connect(factory).addCallback(self._connected)
