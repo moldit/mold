@@ -1,0 +1,13 @@
+[run]
+branch = true
+parallel = true
+source =
+    mold
+
+[report]
+omit =
+    */test/*
+
+exclude_lines =
+    # pragma: no cover
+    .*\(Interface\):.*

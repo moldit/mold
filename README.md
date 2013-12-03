@@ -13,13 +13,23 @@ It really grows on you.
 ``mold`` is yet another configuration management tool.
 
 
-Mold has 3 goals:
+Mold goals:
 
-1. use standards (like stdin, stdout, stderr and JSON)
+1. use standards (like stdin, stdout, stderr) and already-made wheels (bash)
 
 2. allow functions to be written in the language best suited to the problem
 
-3. stay out of the way (e.g. provide all raw logging information)
+3. stay out of the way (e.g. provide raw logging information)
+
+4. local should be easy to run
+
+5. smallest code-print possible (forego features)
+
+6. control-C should stop the process always
+
+7. be verbose by default (hide verbosity in logs if you must)
+
+8. telling > asking http://iffycan.blogspot.com/2013/10/tell-don-ask.html
 
 
 # Quickstart #
@@ -28,24 +38,6 @@ Install it:
 
     pip install https://github.com/moldit/mold/tarball/master
 
-Create a minion:
-
-    mold create-minion /tmp/minion
-
-Inspect the state of a file:
-
-    echo '{"path": "/tmp/minion"}' | /tmp/minion/resources/file inspect
-
-And see the state of the resource:
-
-    {"kind": "file", "group": "wheel", "ctime": 1351889197, "exists": true, "perms": "0557", "filetype": "dir", "mtime": 1351889197, "owner": "moldit", "path": "/tmp/minion", "atime": 1351896286}
-
-
-# Running the tests #
-
-After getting the code (see above):
-
-    trial mold
 
 # Building the docs #
 
@@ -58,7 +50,5 @@ Build the docs
 
     cd docs && make html
 
-
-The Mold Standard is separately maintained in the [moldspec project](https://github.com/iffy/moldspec).
 
 

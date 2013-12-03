@@ -1,6 +1,19 @@
 # Makefile for mold
 
-.PHONY: help predoc clean
+.PHONY: help predoc clean test
+
+test-with-coverage:
+	$(MAKE) test
+	coverage report --fail-under 100
+
+test-sans-coverage:
+	$(MAKE) test
+	coverage report
+
+test:
+	pyflakes mold
+	coverage run $$(which trial) mold functest
+	coverage combine
 
 help:
 	cat Makefile
@@ -11,7 +24,6 @@ clean:
 	-rm MANIFEST
 	-rm -r build
 
-# Generate the rst files from the json schema files
-
-predoc:
-	python extract_schema.py
+coverage:
+	-coverage run $$(which trial) mold
+	coverage report --fail-under 100

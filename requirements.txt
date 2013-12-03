@@ -1,1 +1,4 @@
-Twisted
+Twisted==13.1.0
+pycrypto==2.6.1
+PyOpenSSL
+pyasn1==0.1.7
